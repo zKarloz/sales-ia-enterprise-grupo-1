@@ -1,0 +1,15 @@
+# Dependencias
+node_modules/
+.venv/
+venv/
+ENV/
+
+# Variables de entorno (Secretos)
+.env
+*.env
+
+# Archivos del sistema y editores
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
