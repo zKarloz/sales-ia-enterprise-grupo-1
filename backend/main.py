@@ -4,6 +4,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.statistics.analytics import calculate_statistics
 
+from app.api.customers import router as customers_router
+from app.api.products import router as products_router
+
 app = FastAPI(
     title="Sales IA Enterprise API",
     description="Backend para análisis y estadísticas empresariales",
@@ -18,6 +21,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Routers provisionales.
+app.include_router(customers_router)
+app.include_router(products_router)
 
 @app.get("/")
 def root():

@@ -17,12 +17,29 @@
 
 .sidebar {
   width: 250px;
-  min-height: 100vh;
+  height: 100vh;
+  flex-shrink: 0;
+
   display: flex;
   flex-direction: column;
+
   padding: 24px 16px;
+
   background: #0b1f3a;
   color: white;
+
+  /*
+   * Mantiene el sidebar visible mientras
+   * el contenido principal hace scroll.
+   */
+  position: sticky;
+  top: 0;
+
+  /*
+   * Si en el futuro el menú supera la altura
+   * de la pantalla, el sidebar tendrá su propio scroll.
+   */
+  overflow-y: auto;
 }
 
 .sidebar__brand {
@@ -385,7 +402,11 @@
 
   .sidebar {
     width: 100%;
-    min-height: auto;
+    height: auto;
+
+    position: static;
+
+    overflow-y: visible;
   }
 
   .sidebar__nav {
@@ -414,6 +435,24 @@
     grid-template-columns: 1fr;
   }
 }
+
+.sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
 /* REUSABLE UI COMPONENTS */
 
 .ui-card {
@@ -533,6 +572,7 @@
   background: #fdecec;
   color: #b42318;
 }
+
 /* CUSTOMERS */
 
 .customer-toolbar {
@@ -691,6 +731,7 @@
     grid-template-columns: 1fr;
   }
 }
+
 /* PRODUCTS */
 
 .product-toolbar {
@@ -819,6 +860,7 @@
     grid-column: auto;
   }
 }
+
 /* ANALYTICS */
 
 .page {
@@ -975,6 +1017,7 @@
 }
 
 @media (max-width: 800px) {
+
   .stats-grid,
   .analytics-stats {
     grid-template-columns: repeat(2, 1fr);
@@ -986,8 +1029,266 @@
 }
 
 @media (max-width: 500px) {
+
   .stats-grid,
   .analytics-stats {
     grid-template-columns: 1fr;
+  }
+}
+
+/* =========================================================
+   SALES
+   Estilos provisionales del módulo de ventas.
+   Posteriormente serán migrados a Tailwind CSS.
+   ========================================================= */
+
+.sales-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Ventas utiliza tres indicadores, no cuatro. */
+.sales-stats-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+/* FORMULARIO PRINCIPAL */
+
+.form-card {
+  margin-bottom: 24px;
+  padding: 26px;
+  background: white;
+  border: 1px solid #e3e9f1;
+  border-radius: 12px;
+}
+
+.form-card__header {
+  margin-bottom: 18px;
+}
+
+.form-card__header:not(:first-child) {
+  margin-top: 30px;
+  padding-top: 24px;
+  border-top: 1px solid #edf1f5;
+}
+
+.form-card__header h2 {
+  margin: 0;
+  color: #172033;
+  font-size: 17px;
+}
+
+.form-card__header p {
+  margin: 6px 0 0;
+  color: #718096;
+  font-size: 13px;
+}
+
+/* CAMPOS */
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.form-field label {
+  color: #374151;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.form-field input,
+.form-field select {
+  width: 100%;
+  min-height: 42px;
+  padding: 10px 12px;
+  border: 1px solid #d8e0ea;
+  border-radius: 7px;
+  outline: none;
+  background: white;
+  color: #172033;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.form-field input:focus,
+.form-field select:focus {
+  border-color: #19c3e6;
+  box-shadow: 0 0 0 3px rgba(25, 195, 230, 0.1);
+}
+
+/* ACCIONES DEL FORMULARIO */
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+/* TABLAS DE VENTAS */
+
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  margin-top: 14px;
+  border: 1px solid #e3e9f1;
+  border-radius: 10px;
+  background: white;
+}
+
+.data-table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+}
+
+.data-table th {
+  padding: 13px 16px;
+  text-align: left;
+  background: #f7f9fc;
+  color: #718096;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.data-table td {
+  padding: 15px 16px;
+  border-top: 1px solid #edf1f5;
+  color: #374151;
+  font-size: 13px;
+  vertical-align: middle;
+}
+
+.data-table tbody tr {
+  transition: background 0.15s ease;
+}
+
+.data-table tbody tr:hover {
+  background: #fafbfd;
+}
+
+.data-table td strong {
+  color: #172033;
+}
+
+/*
+ * Campo numérico dentro de la tabla.
+ * Se utiliza para modificar cantidades del carrito.
+ */
+.data-table input[type="number"] {
+  width: 80px;
+  padding: 8px 9px;
+  border: 1px solid #d8e0ea;
+  border-radius: 7px;
+  outline: none;
+  background: white;
+}
+
+.data-table input[type="number"]:focus {
+  border-color: #19c3e6;
+}
+
+/* RESUMEN MONETARIO */
+
+.sales-summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.sales-summary p {
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: 9px;
+  background: #f7f9fc;
+  color: #718096;
+  font-size: 12px;
+}
+
+.sales-summary strong {
+  display: block;
+  margin-top: 7px;
+  color: #172033;
+  font-size: 16px;
+}
+
+.sales-summary__total {
+  background: #eef8fb !important;
+}
+
+.sales-summary__total strong {
+  color: #087c9d;
+  font-size: 20px;
+}
+
+/* MENSAJES DEL FORMULARIO */
+
+.sales-message {
+  margin-top: 20px;
+  padding: 12px 14px;
+  border: 1px solid #d7e8ee;
+  border-radius: 8px;
+  background: #f3fafc;
+  color: #326478;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* HISTORIAL */
+
+.sales-page .ui-card {
+  margin-top: 0;
+}
+
+/* RESPONSIVE */
+
+@media (max-width: 1000px) {
+  .sales-stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .sales-summary {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 700px) {
+  .form-card {
+    padding: 20px;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sales-stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sales-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .form-actions {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+
+  .form-actions .ui-button {
+    width: 100%;
   }
 }
