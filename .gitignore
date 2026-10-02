@@ -1,15 +1,19 @@
-# Dependencias
-node_modules/
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Entornos virtuales
 .venv/
 venv/
-ENV/
+env/
 
-# Variables de entorno (Secretos)
+# Node
+node_modules/
+
+# Builds
+dist/
+
+# Variables de entorno
 .env
-*.env
-
-# Archivos del sistema y editores
-.DS_Store
-Thumbs.db
-.vscode/
-.idea/
+.env.local
