@@ -1,4 +1,10 @@
-const API_URL = "http://localhost:8000";
+const API_URL = import.meta.env.VITE_API_URL;
+
+if (!API_URL) {
+  throw new Error(
+    "La variable de entorno VITE_API_URL no está configurada.",
+  );
+}
 
 interface RequestOptions extends RequestInit {
   token?: string;
@@ -18,16 +24,21 @@ export async function apiRequest<T>(
     headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const response = await fetch(`${API_URL}${endpoint}`, {
-    ...fetchOptions,
-    headers,
-  });
+  const response = await fetch(
+    `${API_URL}${endpoint}`,
+    {
+      ...fetchOptions,
+      headers,
+    },
+  );
 
   if (!response.ok) {
-    let message = "Ocurrió un error en la solicitud.";
+    let message =
+      "Ocurrió un error en la solicitud.";
 
     try {
-      const errorData = await response.json();
+      const errorData =
+        await response.json();
 
       if (errorData.message) {
         message = errorData.message;

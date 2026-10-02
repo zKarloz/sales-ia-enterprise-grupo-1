@@ -1,19 +1,29 @@
-# Python
-__pycache__/
-*.py[cod]
-*.pyo
+# ========================
+# Environment variables
+# ========================
 
-# Entornos virtuales
-.venv/
-venv/
-env/
-
-# Node
-node_modules/
-
-# Builds
-dist/
-
-# Variables de entorno
 .env
 .env.local
+.env.*.local
+
+# Permitimos archivos de ejemplo
+!.env.example
+
+
+# ========================
+# Python
+# ========================
+
+__pycache__/
+*.py[cod]
+
+.venv/
+venv/
+
+
+# ========================
+# Node / Vite
+# ========================
+
+node_modules/
+dist/
