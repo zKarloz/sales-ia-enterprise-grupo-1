@@ -3,10 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.api.routes import customers, products
 from app.core.config import settings
 from app.core.database import engine
 from app.statistics.analytics import calculate_statistics
-
 
 app = FastAPI(
     title="Sales IA Enterprise API",
@@ -23,6 +23,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Endpoints de los módulos comerciales.
+app.include_router(customers.router, prefix="/api")
+app.include_router(products.router, prefix="/api")
 
 @app.get("/")
 def root():
