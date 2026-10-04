@@ -1,119 +1,240 @@
-const kpis = [
-  {
-    title: "Ventas del mes",
-    value: "S/ 48,250",
-    change: "+12.5%",
-  },
-  {
-    title: "Clientes",
-    value: "1,284",
-    change: "+8.2%",
-  },
-  {
-    title: "Productos",
-    value: "356",
-    change: "+4.6%",
-  },
-  {
-    title: "Ticket promedio",
-    value: "S/ 185",
-    change: "+6.8%",
-  },
-];
+import Card from "../../components/Card";
+import ErrorState from "../../components/ErrorState";
+import LoadingState from "../../components/LoadingState";
+
+import { useApi } from "../../hooks/useApi";
+
+import SalesChart from "../analytics/SalesChart";
+
+import type { DashboardSummary } from "../../types/analytics";
+import type { Insight } from "../../types/insight";
+import type { Product } from "../../types/product";
+
 
 export default function DashboardPage() {
+  const {
+    data: summary,
+    loading: summaryLoading,
+    error: summaryError,
+    refetch: refetchSummary,
+  } = useApi<DashboardSummary>(
+    "/api/dashboard/summary?period=month&seller=all&category=all",
+  );
+
+  const {
+    data: products,
+    loading: productsLoading,
+    error: productsError,
+    refetch: refetchProducts,
+  } = useApi<Product[]>("/api/products");
+
+  const {
+    data: insights,
+    loading: insightsLoading,
+    error: insightsError,
+    refetch: refetchInsights,
+  } = useApi<Insight[]>("/api/insights");
+
+
+  const productList = products ?? [];
+  const insightList = insights ?? [];
+
+  const loading =
+    summaryLoading ||
+    productsLoading ||
+    insightsLoading;
+
+  const error =
+    summaryError ||
+    productsError ||
+    insightsError;
+
+
+  // Calcula productos con poco stock.
+  const lowStockProducts = productList.filter(
+    (product) =>
+      product.stock > 0 &&
+      product.stock <= 10,
+  );
+
+  const recentInsights = insightList.slice(0, 3);
+
+
+  async function handleRefresh() {
+    await Promise.all([
+      refetchSummary(),
+      refetchProducts(),
+      refetchInsights(),
+    ]);
+  }
+
+
   return (
     <div className="dashboard">
       <div className="dashboard__header">
         <div>
-          <span className="dashboard__eyebrow">Resumen general</span>
+          <span className="dashboard__eyebrow">
+            Resumen general
+          </span>
+
           <h1>Dashboard</h1>
+
           <p>
-            Visualiza el rendimiento comercial de SalesIA Enterprise.
+            Visualiza el rendimiento comercial de
+            SalesIA Enterprise.
           </p>
         </div>
 
-        <button className="dashboard__button">
-          Actualizar datos
+        <button
+          className="dashboard__button"
+          onClick={handleRefresh}
+          disabled={loading}
+        >
+          {loading
+            ? "Actualizando..."
+            : "Actualizar datos"}
         </button>
       </div>
 
-      <section className="kpi-grid">
-        {kpis.map((kpi) => (
-          <article className="kpi-card" key={kpi.title}>
-            <span className="kpi-card__title">{kpi.title}</span>
 
-            <strong className="kpi-card__value">
-              {kpi.value}
-            </strong>
+      {loading && <LoadingState />}
 
-            <span className="kpi-card__change">
-              {kpi.change} vs. periodo anterior
-            </span>
-          </article>
-        ))}
-      </section>
+      {!loading && error && (
+        <ErrorState message={error} />
+      )}
 
-      <section className="dashboard-grid">
-        <article className="dashboard-card dashboard-card--large">
-          <div className="dashboard-card__header">
-            <div>
-              <span className="dashboard-card__label">
-                Rendimiento
+
+      {!loading && !error && (
+        <>
+          <section className="kpi-grid">
+            <article className="kpi-card">
+              <span className="kpi-card__title">
+                Ventas del mes
               </span>
-              <h2>Ventas por periodo</h2>
-            </div>
-          </div>
 
-          <div className="chart-placeholder">
-            <div className="chart-placeholder__line">
-              <span />
-              <span />
-              <span />
-              <span />
-              <span />
-              <span />
-            </div>
+              <strong className="kpi-card__value">
+                S/{" "}
+                {(summary?.total_sales ?? 0)
+                  .toLocaleString("es-PE", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+              </strong>
 
-            <div className="chart-placeholder__labels">
-              <span>Ene</span>
-              <span>Feb</span>
-              <span>Mar</span>
-              <span>Abr</span>
-              <span>May</span>
-              <span>Jun</span>
-            </div>
-          </div>
-        </article>
-
-        <article className="dashboard-card">
-          <div className="dashboard-card__header">
-            <div>
-              <span className="dashboard-card__label">
-                Insights
+              <span className="kpi-card__change">
+                Datos reales de ventas
               </span>
-              <h2>Resumen</h2>
-            </div>
-          </div>
+            </article>
 
-          <div className="insight-list">
-            <div className="insight-item">
-              <strong>Ventas</strong>
-              <span>El rendimiento presenta crecimiento.</span>
-            </div>
 
-            <div className="insight-item">
-              <strong>Clientes</strong>
-              <span>La cantidad de clientes continúa aumentando.</span>
-            </div>
+            <article className="kpi-card">
+              <span className="kpi-card__title">
+                Clientes
+              </span>
 
-            <div className="insight-item">
-              <strong>Productos</strong>
-              <span>Existen productos con mayor movimiento.</span>
-            </div>
-          </div>
-        </article>
-      </section>
+              <strong className="kpi-card__value">
+                {summary?.total_customers ?? 0}
+              </strong>
+
+              <span className="kpi-card__change">
+                Clientes con ventas en el período
+              </span>
+            </article>
+
+
+            <article className="kpi-card">
+              <span className="kpi-card__title">
+                Productos
+              </span>
+
+              <strong className="kpi-card__value">
+                {productList.length}
+              </strong>
+
+              <span className="kpi-card__change">
+                {lowStockProducts.length} con stock bajo
+              </span>
+            </article>
+
+
+            <article className="kpi-card">
+              <span className="kpi-card__title">
+                Ticket promedio
+              </span>
+
+              <strong className="kpi-card__value">
+                S/{" "}
+                {(summary?.average_sale ?? 0)
+                  .toLocaleString("es-PE", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+              </strong>
+
+              <span className="kpi-card__change">
+                Promedio por venta
+              </span>
+            </article>
+          </section>
+
+
+          <section className="dashboard-grid">
+            <Card
+              title="Ventas por período"
+              subtitle="Ventas agrupadas por mes."
+            >
+              <SalesChart
+                values={
+                  summary?.sales_by_period ?? []
+                }
+              />
+            </Card>
+
+
+            <article className="dashboard-card">
+              <div className="dashboard-card__header">
+                <div>
+                  <span className="dashboard-card__label">
+                    Insights
+                  </span>
+
+                  <h2>Resumen</h2>
+                </div>
+              </div>
+
+              <div className="insight-list">
+                {recentInsights.length === 0 ? (
+                  <div className="insight-item">
+                    <strong>
+                      Sin insights
+                    </strong>
+
+                    <span>
+                      Aún no existen observaciones
+                      analíticas registradas.
+                    </span>
+                  </div>
+                ) : (
+                  recentInsights.map((insight) => (
+                    <div
+                      className="insight-item"
+                      key={insight.id}
+                    >
+                      <strong>
+                        {insight.title}
+                      </strong>
+
+                      <span>
+                        {insight.observation}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </article>
+          </section>
+        </>
+      )}
     </div>
   );
 }
