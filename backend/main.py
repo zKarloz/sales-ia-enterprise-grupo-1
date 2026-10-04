@@ -1,11 +1,13 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
 
 from app.api.routes import categories, customers, inventory, products, sales
 from app.core.config import settings
-from app.core.database import engine
+from app.core.database import engine, get_db
 from app.statistics.analytics import calculate_statistics
 
 app = FastAPI(
@@ -61,8 +63,12 @@ def health():
 def dashboard_summary(
     seller: str = "all",
     category: str = "all",
+    db: Session = Depends(get_db),
 ):
+    """Genera indicadores utilizando ventas reales."""
+
     statistics = calculate_statistics(
+        db=db,
         seller=seller,
         category=category,
     )
