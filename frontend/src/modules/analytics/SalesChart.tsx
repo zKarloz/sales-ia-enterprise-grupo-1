@@ -1,45 +1,55 @@
+import type { SalesPeriod } from "../../types/analytics";
+
+
 interface SalesChartProps {
-  values: number[];
+  values: SalesPeriod[];
 }
 
-const months = [
-  "Ene",
-  "Feb",
-  "Mar",
-  "Abr",
-  "May",
-  "Jun",
-];
 
 export default function SalesChart({
   values,
 }: SalesChartProps) {
-  const maxValue = Math.max(...values, 1);
+  // Calcula la altura relativa de cada barra.
+  const maxValue = Math.max(
+    ...values.map((item) => item.total),
+    1,
+  );
+
+  if (values.length === 0) {
+    return (
+      <div className="analytics-chart">
+        <p>No hay ventas para el período seleccionado.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="analytics-chart">
       <div className="analytics-chart__bars">
-        {values.map((value, index) => {
-          const height = (value / maxValue) * 100;
+        {values.map((item) => {
+          const height =
+            (item.total / maxValue) * 100;
 
           return (
             <div
               className="analytics-chart__column"
-              key={months[index]}
+              key={item.label}
             >
               <span className="analytics-chart__value">
-                S/ {(value / 1000).toFixed(1)}k
+                S/ {item.total.toLocaleString("es-PE")}
               </span>
 
               <div className="analytics-chart__bar-container">
                 <div
                   className="analytics-chart__bar"
-                  style={{ height: `${height}%` }}
+                  style={{
+                    height: `${height}%`,
+                  }}
                 />
               </div>
 
               <span className="analytics-chart__label">
-                {months[index]}
+                {item.label}
               </span>
             </div>
           );

@@ -1,4 +1,6 @@
-const API_URL = "http://localhost:8000";
+// URL del backend definida según el entorno.
+const API_URL =
+  import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
 interface RequestOptions extends RequestInit {
   token?: string;

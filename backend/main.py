@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.api.routes import analyses, categories, customers, datasets, insights, inventory, probability, products, sales, statistics
 from app.core.config import settings
 from app.core.database import engine, get_db
-from app.statistics.analytics import calculate_statistics
+from app.statistics.analytics import calculate_statistics, get_analytics_filters
 
 app = FastAPI(
     title="Sales IA Enterprise API",
@@ -69,19 +69,29 @@ def health():
 
 @app.get("/api/dashboard/summary")
 def dashboard_summary(
+    period: str = "month",
     seller: str = "all",
     category: str = "all",
     db: Session = Depends(get_db),
 ):
-    """Genera indicadores utilizando ventas reales."""
+    """Genera indicadores desde las ventas reales."""
 
     statistics = calculate_statistics(
         db=db,
+        period=period,
         seller=seller,
         category=category,
     )
 
     return {
         **statistics,
-        "message": "Resumen analítico generado correctamente",
+        "message": "Resumen analitico generado correctamente",
     }
+
+@app.get("/api/dashboard/filters")
+def dashboard_filters(
+    db: Session = Depends(get_db),
+):
+    """Devuelve las opciones disponibles para Analytics."""
+
+    return get_analytics_filters(db)

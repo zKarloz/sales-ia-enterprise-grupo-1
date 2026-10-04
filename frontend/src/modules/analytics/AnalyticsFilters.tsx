@@ -1,16 +1,24 @@
+import type { AnalyticsOption } from "../../types/analytics";
+
+
 interface AnalyticsFiltersProps {
   period: string;
   seller: string;
   category: string;
+  sellers: AnalyticsOption[];
+  categories: AnalyticsOption[];
   onPeriodChange: (value: string) => void;
   onSellerChange: (value: string) => void;
   onCategoryChange: (value: string) => void;
 }
 
+
 export default function AnalyticsFilters({
   period,
   seller,
   category,
+  sellers,
+  categories,
   onPeriodChange,
   onSellerChange,
   onCategoryChange,
@@ -44,9 +52,15 @@ export default function AnalyticsFilters({
           }
         >
           <option value="all">Todos</option>
-          <option value="juan">Juan Pérez</option>
-          <option value="ana">Ana Torres</option>
-          <option value="carlos">Carlos Mendoza</option>
+
+          {sellers.map((option) => (
+            <option
+              key={option.id}
+              value={option.value}
+            >
+              {option.label}
+            </option>
+          ))}
         </select>
       </div>
 
@@ -61,9 +75,15 @@ export default function AnalyticsFilters({
           }
         >
           <option value="all">Todas</option>
-          <option value="technology">Tecnología</option>
-          <option value="furniture">Mobiliario</option>
-          <option value="office">Oficina</option>
+
+          {categories.map((option) => (
+            <option
+              key={option.id}
+              value={option.value}
+            >
+              {option.label}
+            </option>
+          ))}
         </select>
       </div>
     </div>
