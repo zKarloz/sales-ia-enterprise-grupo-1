@@ -1,17 +1,34 @@
-export interface SaleItem {
-  productId: number;
-  productName: string;
+// Producto enviado al registrar una venta.
+export interface SaleItemCreate {
+  product_id: number;
   quantity: number;
-  unitPrice: number;
-  subtotal: number;
 }
 
+// Payload aceptado por POST /api/sales.
+export interface SaleCreate {
+  customer_id: number;
+  seller_id: number;
+  payment_method: string;
+  items: SaleItemCreate[];
+}
+
+// Detalle calculado por el backend.
+export interface SaleDetail {
+  id: number;
+  product_id: number;
+  quantity: number;
+  unit_price: string;
+  subtotal: string;
+}
+
+// Venta devuelta por el backend.
 export interface Sale {
   id: number;
-  customerId: number;
-  customerName: string;
-  date: string;
-  items: SaleItem[];
-  total: number;
-  status: "completed" | "pending" | "cancelled";
+  customer_id: number;
+  seller_id: number;
+  total_amount: string;
+  payment_method: string;
+  status: string | null;
+  created_at: string | null;
+  items: SaleDetail[];
 }

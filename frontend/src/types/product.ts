@@ -1,10 +1,28 @@
+// Producto devuelto por el backend.
 export interface Product {
   id: number;
+  category_id: number;
+  sku: string;
   name: string;
-  description?: string;
+  price: string;
+  stock: number;
+  created_at: string | null;
+}
+
+// Datos enviados al registrar un producto.
+export interface ProductCreate {
+  category_id: number;
+  sku: string;
+  name: string;
   price: number;
   stock: number;
-  categoryId?: number;
-  categoryName?: string;
-  status: "active" | "inactive";
+}
+
+// Campos permitidos al actualizar un producto.
+export interface ProductUpdate {
+  category_id?: number;
+  sku?: string;
+  name?: string;
+  price?: number;
+  stock?: number;
 }
