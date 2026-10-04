@@ -1,15 +1,73 @@
-# Dependencias
-node_modules/
+# =========================================================
+# SALESIA ENTERPRISE - .gitignore
+# =========================================================
+
+# -------------------------
+# Python
+# -------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+
 .venv/
 venv/
 ENV/
 
-# Variables de entorno (Secretos)
-.env
-*.env
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
-# Archivos del sistema y editores
+# -------------------------
+# Node / Frontend
+# -------------------------
+node_modules/
+dist/
+build/
+
+# -------------------------
+# Variables de entorno
+# -------------------------
+.env
+.env.*
+**/.env
+**/.env.*
+
+# Permitir plantillas de configuración
+!.env.example
+!**/.env.example
+
+# -------------------------
+# Logs
+# -------------------------
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# -------------------------
+# Cobertura / testing
+# -------------------------
+.coverage
+coverage/
+htmlcov/
+
+# -------------------------
+# Sistema operativo
+# -------------------------
 .DS_Store
 Thumbs.db
+desktop.ini
+
+# -------------------------
+# Editores / IDE
+# -------------------------
 .vscode/
 .idea/
+
+# -------------------------
+# Archivos temporales
+# -------------------------
+*.tmp
+*.temp
+*.swp
+*.swo
