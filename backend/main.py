@@ -5,7 +5,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from app.api.routes import categories, customers, inventory, products, sales
+from app.api.routes import categories, customers, inventory, probability, products, sales, statistics
 from app.core.config import settings
 from app.core.database import engine, get_db
 from app.statistics.analytics import calculate_statistics
@@ -29,8 +29,10 @@ app.add_middleware(
 app.include_router(categories.router, prefix="/api")
 app.include_router(customers.router, prefix="/api")
 app.include_router(inventory.router, prefix="/api")
+app.include_router(probability.router, prefix="/api")
 app.include_router(products.router, prefix="/api")
 app.include_router(sales.router, prefix="/api")
+app.include_router(statistics.router, prefix="/api")
 
 @app.get("/")
 def root():
