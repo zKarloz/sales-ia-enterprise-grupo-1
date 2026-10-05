@@ -1,0 +1,5 @@
+ROLE_ADMIN = "Administrador"
+ROLE_MANAGER = "Gerente"
+ROLE_SELLER = "Vendedor"
+ROLE_ANALYST = "Analista"
+ROLE_WAREHOUSE = "Almacén"

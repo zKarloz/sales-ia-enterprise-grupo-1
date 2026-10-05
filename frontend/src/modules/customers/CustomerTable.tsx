@@ -1,10 +1,11 @@
-import StatusBadge from "../../components/StatusBadge";
 import type { Customer } from "../../types/customer";
+
 
 interface CustomerTableProps {
   customers: Customer[];
   onDelete: (id: number) => void;
 }
+
 
 export default function CustomerTable({
   customers,
@@ -14,9 +15,7 @@ export default function CustomerTable({
     return (
       <div className="customer-empty">
         <h3>No se encontraron clientes</h3>
-        <p>
-          Prueba con otro término de búsqueda.
-        </p>
+        <p>No existen clientes registrados.</p>
       </div>
     );
   }
@@ -27,9 +26,9 @@ export default function CustomerTable({
         <thead>
           <tr>
             <th>Cliente</th>
-            <th>Documento</th>
             <th>Contacto</th>
-            <th>Estado</th>
+            <th>Dirección</th>
+            <th>Registro</th>
             <th>Acciones</th>
           </tr>
         </thead>
@@ -38,13 +37,15 @@ export default function CustomerTable({
           {customers.map((customer) => (
             <tr key={customer.id}>
               <td>
-                <strong>{customer.name}</strong>
+                <strong>
+                  {customer.full_name}
+                </strong>
               </td>
 
-              <td>{customer.document ?? "—"}</td>
-
               <td>
-                <span>{customer.email}</span>
+                <span>
+                  {customer.email ?? "Sin correo"}
+                </span>
 
                 {customer.phone && (
                   <small>{customer.phone}</small>
@@ -52,13 +53,23 @@ export default function CustomerTable({
               </td>
 
               <td>
-                <StatusBadge status={customer.status} />
+                {customer.address ?? "—"}
+              </td>
+
+              <td>
+                {customer.created_at
+                  ? new Date(
+                    customer.created_at,
+                  ).toLocaleDateString("es-PE")
+                  : "—"}
               </td>
 
               <td>
                 <button
                   className="table-action table-action--danger"
-                  onClick={() => onDelete(customer.id)}
+                  onClick={() =>
+                    onDelete(customer.id)
+                  }
                 >
                   Eliminar
                 </button>

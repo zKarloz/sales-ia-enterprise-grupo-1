@@ -1,69 +1,78 @@
 import Card from "../../components/Card";
+import EmptyState from "../../components/EmptyState";
+import ErrorState from "../../components/ErrorState";
+import LoadingState from "../../components/LoadingState";
 import PageHeader from "../../components/PageHeader";
-import InventoryTable from "./InventoryTable";
+
+import { useApi } from "../../hooks/useApi";
+
+import type { Category } from "../../types/category";
+import type { InventoryMovement } from "../../types/inventory";
 import type { Product } from "../../types/product";
 
-const inventoryProducts: Product[] = [
-  {
-    id: 1,
-    name: "Laptop empresarial",
-    categoryId: 1,
-    categoryName: "Tecnología",
-    price: 2500,
-    stock: 24,
-    status: "active",
-  },
-  {
-    id: 2,
-    name: "Monitor 24 pulgadas",
-    categoryId: 1,
-    categoryName: "Tecnología",
-    price: 850,
-    stock: 8,
-    status: "active",
-  },
-  {
-    id: 3,
-    name: "Silla ergonómica",
-    categoryId: 2,
-    categoryName: "Mobiliario",
-    price: 650,
-    stock: 0,
-    status: "inactive",
-  },
-  {
-    id: 4,
-    name: "Teclado mecánico",
-    categoryId: 1,
-    categoryName: "Tecnología",
-    price: 280,
-    stock: 15,
-    status: "active",
-  },
-];
+import InventoryTable from "./InventoryTable";
+
 
 export default function InventoryPage() {
-  const totalProducts = inventoryProducts.length;
+  const {
+    data: products,
+    loading: productsLoading,
+    error: productsError,
+  } = useApi<Product[]>("/api/products");
 
-  const totalUnits = inventoryProducts.reduce(
+  const {
+    data: categories,
+    loading: categoriesLoading,
+    error: categoriesError,
+  } = useApi<Category[]>("/api/categories");
+
+  const {
+    data: movements,
+    loading: movementsLoading,
+    error: movementsError,
+  } = useApi<InventoryMovement[]>("/api/inventory");
+
+
+  const productList = products ?? [];
+  const categoryList = categories ?? [];
+  const movementList = movements ?? [];
+
+
+  // Calcula KPIs usando stock real.
+  const totalProducts = productList.length;
+
+  const totalUnits = productList.reduce(
     (total, product) => total + product.stock,
     0,
   );
 
-  const lowStock = inventoryProducts.filter(
+  const lowStock = productList.filter(
     (product) =>
-      product.stock > 0 && product.stock <= 10,
+      product.stock > 0 &&
+      product.stock <= 10,
   ).length;
 
-  const outOfStock = inventoryProducts.filter(
+  const outOfStock = productList.filter(
     (product) => product.stock === 0,
   ).length;
+
+
+  const loading =
+    productsLoading ||
+    categoriesLoading ||
+    movementsLoading;
+
+  const error =
+    productsError ||
+    categoriesError ||
+    movementsError;
+
 
   return (
     <section className="page">
       <PageHeader
         title="Inventario"
-        description="Consulta el estado y disponibilidad de los productos."
+        description="Consulta el estado, disponibilidad y movimientos del inventario."
       />
 
       <div className="stats-grid">
@@ -92,14 +101,96 @@ export default function InventoryPage() {
         </Card>
       </div>
 
-      <Card
-        title="Estado del inventario"
-        subtitle="Resumen provisional del stock."
-      >
-        <InventoryTable
-          products={inventoryProducts}
+      {loading && <LoadingState />}
+
+      {!loading && error && (
+        <ErrorState message={error} />
+      )}
+
+      {!loading && !error && productList.length === 0 && (
+        <EmptyState
+          title="No hay productos"
+          message="Todavía no existen productos en inventario."
         />
-      </Card>
+      )}
+
+      {!loading && !error && productList.length > 0 && (
+        <Card
+          title="Estado del inventario"
+          subtitle="Stock actual obtenido desde Supabase."
+        >
+          <InventoryTable
+            products={productList}
+            categories={categoryList}
+          />
+        </Card>
+      )}
+
+      {!loading && !error && (
+        <Card
+          title="Movimientos recientes"
+          subtitle="Entradas, salidas y ajustes registrados."
+        >
+          {movementList.length === 0 ? (
+            <EmptyState
+              title="Sin movimientos"
+              message="Todavía no existen movimientos registrados."
+            />
+          ) : (
+            <div className="table-wrapper">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Producto</th>
+                    <th>Tipo</th>
+                    <th>Cantidad</th>
+                    <th>Motivo</th>
+                    <th>Fecha</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {movementList.map((movement) => {
+                    const product = productList.find(
+                      (item) =>
+                        item.id === movement.product_id,
+                    );
+
+                    return (
+                      <tr key={movement.id}>
+                        <td>
+                          {product?.name ??
+                            `Producto #${movement.product_id}`}
+                        </td>
+
+                        <td>
+                          {movement.movement_type}
+                        </td>
+
+                        <td>
+                          {movement.quantity}
+                        </td>
+
+                        <td>
+                          {movement.reason ?? "—"}
+                        </td>
+
+                        <td>
+                          {movement.created_at
+                            ? new Date(
+                              movement.created_at,
+                            ).toLocaleString("es-PE")
+                            : "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+      )}
     </section>
   );
 }

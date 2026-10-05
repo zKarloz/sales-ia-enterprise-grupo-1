@@ -1,20 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
+
 import Card from "../../components/Card";
 import PageHeader from "../../components/PageHeader";
+
+import {
+  getAnalyticsFilters,
+  getDashboardSummary,
+} from "../../services/analyticsService";
+
+import type {
+  AnalyticsFilterOptions,
+  DashboardSummary,
+} from "../../types/analytics";
+
 import AnalyticsFilters from "./AnalyticsFilters";
 import SalesChart from "./SalesChart";
-import { apiRequest } from "../../services/api";
 
-interface DashboardSummary {
-  total_sales: number;
-  total_customers: number;
-  total_orders: number;
-  average_sale: number;
-  mean: number;
-  median: number;
-  sales_by_period: number[];
-  message: string;
-}
 
 export default function AnalyticsPage() {
   const [period, setPeriod] = useState("month");
@@ -24,8 +25,35 @@ export default function AnalyticsPage() {
   const [summary, setSummary] =
     useState<DashboardSummary | null>(null);
 
+  // Opciones reales obtenidas desde Supabase.
+  const [filterOptions, setFilterOptions] =
+    useState<AnalyticsFilterOptions>({
+      sellers: [],
+      categories: [],
+    });
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+
+  useEffect(() => {
+    async function loadFilters() {
+      try {
+        const data = await getAnalyticsFilters();
+
+        setFilterOptions(data);
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "No se pudieron cargar los filtros.",
+        );
+      }
+    }
+
+    loadFilters();
+  }, []);
+
 
   useEffect(() => {
     async function loadSummary() {
@@ -33,14 +61,12 @@ export default function AnalyticsPage() {
         setLoading(true);
         setError("");
 
-        const params = new URLSearchParams({
+        // Los filtros se envían al backend.
+        const data = await getDashboardSummary({
+          period,
           seller,
           category,
         });
-
-        const data = await apiRequest<DashboardSummary>(
-          `/api/dashboard/summary?${params.toString()}`,
-        );
 
         setSummary(data);
       } catch (err) {
@@ -55,7 +81,8 @@ export default function AnalyticsPage() {
     }
 
     loadSummary();
-  }, [seller, category]);
+  }, [period, seller, category]);
+
 
   const totalSales = summary?.total_sales ?? 0;
   const transactions = summary?.total_orders ?? 0;
@@ -65,11 +92,31 @@ export default function AnalyticsPage() {
 
   const salesData = summary?.sales_by_period ?? [];
 
+
   const activeFilters = useMemo(() => {
     return [period, seller, category].filter(
-      (value) => value !== "all" && value !== "month",
+      (value) =>
+        value !== "all" &&
+        value !== "month",
     ).length;
   }, [period, seller, category]);
+
+
+  // Obtiene las etiquetas reales seleccionadas.
+  const sellerLabel =
+    seller === "all"
+      ? "Todos"
+      : filterOptions.sellers.find(
+        (option) => option.value === seller,
+      )?.label ?? seller;
+
+  const categoryLabel =
+    category === "all"
+      ? "Todas"
+      : filterOptions.categories.find(
+        (option) => option.value === category,
+      )?.label ?? category;
+
 
   return (
     <section className="page">
@@ -90,6 +137,8 @@ export default function AnalyticsPage() {
           period={period}
           seller={seller}
           category={category}
+          sellers={filterOptions.sellers}
+          categories={filterOptions.categories}
           onPeriodChange={setPeriod}
           onSellerChange={setSeller}
           onCategoryChange={setCategory}
@@ -175,6 +224,7 @@ export default function AnalyticsPage() {
           <div className="analytics-summary">
             <div>
               <span>Período</span>
+
               <strong>
                 {period === "month"
                   ? "Este mes"
@@ -186,28 +236,12 @@ export default function AnalyticsPage() {
 
             <div>
               <span>Vendedor</span>
-              <strong>
-                {seller === "all"
-                  ? "Todos"
-                  : seller === "juan"
-                    ? "Juan Pérez"
-                    : seller === "ana"
-                      ? "Ana Torres"
-                      : "Carlos Mendoza"}
-              </strong>
+              <strong>{sellerLabel}</strong>
             </div>
 
             <div>
               <span>Categoría</span>
-              <strong>
-                {category === "all"
-                  ? "Todas"
-                  : category === "technology"
-                    ? "Tecnología"
-                    : category === "furniture"
-                      ? "Mobiliario"
-                      : "Oficina"}
-              </strong>
+              <strong>{categoryLabel}</strong>
             </div>
           </div>
         </Card>

@@ -1,19 +1,34 @@
-import type { Product } from "../../types/product";
 import StatusBadge from "../../components/StatusBadge";
+
+import type { Category } from "../../types/category";
+import type { Product } from "../../types/product";
+
 
 interface InventoryTableProps {
   products: Product[];
+  categories: Category[];
 }
+
 
 export default function InventoryTable({
   products,
+  categories,
 }: InventoryTableProps) {
+  // Relaciona category_id con el nombre real.
+  const categoryMap = new Map(
+    categories.map((category) => [
+      category.id,
+      category.name,
+    ]),
+  );
+
   return (
     <div className="table-wrapper">
       <table className="data-table">
         <thead>
           <tr>
             <th>Producto</th>
+            <th>SKU</th>
             <th>Categoría</th>
             <th>Stock</th>
             <th>Precio</th>
@@ -43,16 +58,27 @@ export default function InventoryTable({
                   <strong>{product.name}</strong>
                 </td>
 
+                <td>{product.sku}</td>
+
                 <td>
-                  {product.categoryName ?? "Sin categoría"}
+                  {categoryMap.get(product.category_id) ??
+                    "Sin categoría"}
                 </td>
 
                 <td>
-                  <strong>{product.stock}</strong> unidades
+                  <strong>{product.stock}</strong>{" "}
+                  unidades
                 </td>
 
                 <td>
-                  S/ {product.price.toFixed(2)}
+                  S/{" "}
+                  {Number(product.price).toLocaleString(
+                    "es-PE",
+                    {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    },
+                  )}
                 </td>
 
                 <td>

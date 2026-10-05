@@ -1,60 +1,33 @@
-/*
- * Producto incluido dentro de una venta.
- */
-export interface SaleItem {
-  productId: number;
-  productName: string;
+// Producto enviado al registrar una venta.
+export interface SaleItemCreate {
+  product_id: number;
   quantity: number;
-  unitPrice: number;
-  subtotal: number;
 }
 
-/*
- * Métodos de pago manejados provisionalmente
- * por el módulo de ventas.
- */
-export type PaymentMethod =
-  | "CASH"
-  | "CARD"
-  | "TRANSFER"
-  | "YAPE"
-  | "PLIN";
-
-/*
- * Información correspondiente al pago.
- */
-export interface SalePayment {
-  method: PaymentMethod;
-  amount: number;
+// Payload aceptado por POST /api/sales.
+export interface SaleCreate {
+  customer_id: number;
+  payment_method: string;
+  items: SaleItemCreate[];
 }
 
-/*
- * Venta registrada en el sistema.
- *
- * subtotal, discount, tax y payment son opcionales
- * por compatibilidad con la estructura provisional
- * que ya existía en el frontend.
- */
+// Detalle calculado por el backend.
+export interface SaleDetail {
+  id: number;
+  product_id: number;
+  quantity: number;
+  unit_price: string;
+  subtotal: string;
+}
+
+// Venta devuelta por el backend.
 export interface Sale {
   id: number;
-
-  customerId: number;
-  customerName: string;
-
-  date: string;
-
-  items: SaleItem[];
-
-  subtotal?: number;
-  discount?: number;
-  tax?: number;
-
-  total: number;
-
-  payment?: SalePayment;
-
-  status:
-  | "completed"
-  | "pending"
-  | "cancelled";
+  customer_id: number;
+  seller_id: number;
+  total_amount: string;
+  payment_method: string;
+  status: string | null;
+  created_at: string | null;
+  items: SaleDetail[];
 }

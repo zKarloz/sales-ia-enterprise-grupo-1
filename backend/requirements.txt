@@ -1,2 +1,8 @@
 fastapi
-uvicorn
+uvicorn[standard]
+sqlalchemy
+psycopg[binary]
+pydantic
+pydantic-settings
+PyJWT
+pwdlib[argon2]

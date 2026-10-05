@@ -1,145 +1,175 @@
 import { useState } from "react";
 
-import PageHeader from "../../components/PageHeader";
 import Button from "../../components/Button";
 import Card from "../../components/Card";
 import EmptyState from "../../components/EmptyState";
+import ErrorState from "../../components/ErrorState";
+import LoadingState from "../../components/LoadingState";
+import PageHeader from "../../components/PageHeader";
 
-import SaleTable from "./SaleTable";
+import { useApi } from "../../hooks/useApi";
+import { createSale } from "../../services/saleService";
+
+import type { Customer } from "../../types/customer";
+import type { Product } from "../../types/product";
+import type {
+  Sale,
+  SaleCreate,
+} from "../../types/sale";
+import type { UserOption } from "../../types/user";
+
 import SaleForm from "./SaleForm";
+import SaleTable from "./SaleTable";
 
-import type { Sale } from "../../types/sale";
+import {
+  ROLE_ADMIN,
+  ROLE_SELLER,
+} from "../../constants/roles";
 
-/*
- * Página principal del módulo de ventas.
- *
- * Actualmente trabaja con datos locales mientras
- * el backend definitivo del proyecto continúa
- * en desarrollo.
- *
- * Más adelante podremos reemplazar el estado local
- * por saleService sin modificar SaleForm ni SaleTable.
- */
+import { useAuth } from "../../context/AuthContext";
+
 export default function SalesPage() {
-  /*
-   * Controla si el formulario de nueva venta
-   * se encuentra visible.
-   */
-  const [showForm, setShowForm] =
-    useState(false);
+  const { user } = useAuth();
 
-  /*
-   * Historial provisional de ventas.
-   *
-   * Por ahora las ventas permanecen únicamente
-   * durante la sesión actual del navegador.
-   *
-   * Posteriormente serán obtenidas desde FastAPI.
-   */
-  const [sales, setSales] =
-    useState<Sale[]>([]);
+  const canCreateSale =
+    user?.role === ROLE_ADMIN ||
+    user?.role === ROLE_SELLER;
 
-  /*
-   * Registra una venta de forma provisional.
-   *
-   * Date.now() se utiliza como identificador temporal.
-   * Cuando exista PostgreSQL, el ID será generado
-   * por la base de datos.
-   */
-  function handleCreateSale(
-    sale: Omit<Sale, "id">,
+  const [showForm, setShowForm] = useState(false);
+  const [actionError, setActionError] =
+    useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+
+  const {
+    data: sales,
+    loading: salesLoading,
+    error: salesError,
+    refetch: refetchSales,
+  } = useApi<Sale[]>("/api/sales");
+
+
+  const {
+    data: customers,
+    loading: customersLoading,
+    error: customersError,
+  } = useApi<Customer[]>("/api/customers");
+
+
+  const {
+    data: products,
+    loading: productsLoading,
+    error: productsError,
+    refetch: refetchProducts,
+  } = useApi<Product[]>("/api/products");
+
+
+  const {
+    data: sellers,
+    loading: sellersLoading,
+    error: sellersError,
+  } = useApi<UserOption[]>("/api/users/options");
+
+
+  const saleList = sales ?? [];
+  const customerList = customers ?? [];
+  const productList = products ?? [];
+  const sellerList = sellers ?? [];
+
+
+  const loading =
+    salesLoading ||
+    customersLoading ||
+    productsLoading ||
+    sellersLoading;
+
+  const error =
+    salesError ||
+    customersError ||
+    productsError ||
+    sellersError;
+
+
+  async function handleCreateSale(
+    sale: SaleCreate,
   ) {
-    const newSale: Sale = {
-      ...sale,
-      id: Date.now(),
-    };
+    try {
+      setSaving(true);
+      setActionError(null);
 
-    /*
-     * Colocamos la venta nueva al inicio
-     * para mostrar primero las operaciones recientes.
-     */
-    setSales((currentSales) => [
-      newSale,
-      ...currentSales,
-    ]);
+      await createSale(sale);
 
-    /*
-     * Cerramos el formulario una vez registrada
-     * correctamente la venta.
-     */
-    setShowForm(false);
+      setShowForm(false);
 
-    console.log(
-      "Venta registrada provisionalmente:",
-      newSale,
-    );
-  }
-
-  /*
-   * Elimina provisionalmente una venta
-   * del historial local.
-   */
-  function handleDeleteSale(id: number) {
-    const confirmed = window.confirm(
-      "¿Deseas eliminar esta venta?",
-    );
-
-    if (!confirmed) {
-      return;
+      // Actualiza ventas y stock después de registrar.
+      await Promise.all([
+        refetchSales(),
+        refetchProducts(),
+      ]);
+    } catch (error) {
+      setActionError(
+        error instanceof Error
+          ? error.message
+          : "No se pudo registrar la venta.",
+      );
+    } finally {
+      setSaving(false);
     }
-
-    setSales((currentSales) =>
-      currentSales.filter(
-        (sale) => sale.id !== id,
-      ),
-    );
   }
 
-  /*
-   * Indicadores generales del módulo.
-   */
-  const totalSales = sales.reduce(
-    (sum, sale) => sum + sale.total,
+
+  const totalSales = saleList.reduce(
+    (sum, sale) =>
+      sum + Number(sale.total_amount),
     0,
   );
 
   const averageTicket =
-    sales.length > 0
-      ? totalSales / sales.length
+    saleList.length > 0
+      ? totalSales / saleList.length
       : 0;
 
+
   return (
-    <section className="page sales-page">
-      {/* ENCABEZADO */}
+    <section className="page">
       <PageHeader
         title="Ventas"
         description="Gestiona las ventas y operaciones comerciales."
         action={
-          <Button
-            onClick={() =>
-              setShowForm(true)
-            }
-          >
-            + Nueva venta
-          </Button>
+          canCreateSale ? (
+            <Button
+              onClick={() => {
+                setActionError(null);
+                setShowForm(true);
+              }}
+            >
+              + Nueva venta
+            </Button>
+          ) : undefined
         }
       />
 
-      {/* FORMULARIO */}
-      {showForm && (
-        <SaleForm
-          onSubmit={handleCreateSale}
-          onCancel={() =>
-            setShowForm(false)
-          }
-        />
+      {actionError && (
+        <ErrorState message={actionError} />
       )}
 
-      {/* INDICADORES */}
-      <div className="stats-grid sales-stats-grid">
+      {showForm && (
+        <>
+          <SaleForm
+            customers={customerList}
+            products={productList}
+            onSubmit={handleCreateSale}
+            onCancel={() => setShowForm(false)}
+          />
+
+          {saving && <LoadingState />}
+        </>
+      )}
+
+      <div className="stats-grid">
         <Card title="Ventas registradas">
           <div className="stat-value">
-            {sales.length}
+            {saleList.length}
           </div>
         </Card>
 
@@ -156,32 +186,34 @@ export default function SalesPage() {
         </Card>
       </div>
 
-      {/* HISTORIAL */}
       <Card
         title="Historial de ventas"
-        subtitle="Ventas registradas provisionalmente durante esta sesión."
+        subtitle="Información obtenida desde la API."
       >
-        {sales.length === 0 ? (
-          <EmptyState
-            title="No hay ventas"
-            message="Todavía no existen ventas registradas."
-          />
-        ) : (
-          <SaleTable
-            sales={sales}
-            onDelete={handleDeleteSale}
-          />
-        )}
-      </Card>
+        {loading && <LoadingState />}
 
-      <Card>
-        {/* Pie de página provisional */}
-        <p>
-          <small>
-            Este módulo de ventas es una versión
-            provisional. Desarrollado por el integrante 5: Carlos Gutierrez
-          </small>
-        </p>
+        {!loading && error && (
+          <ErrorState message={error} />
+        )}
+
+        {!loading &&
+          !error &&
+          saleList.length === 0 && (
+            <EmptyState
+              title="No hay ventas"
+              message="Todavía no existen ventas registradas."
+            />
+          )}
+
+        {!loading &&
+          !error &&
+          saleList.length > 0 && (
+            <SaleTable
+              sales={saleList}
+              customers={customerList}
+              sellers={sellerList}
+            />
+          )}
       </Card>
     </section>
   );

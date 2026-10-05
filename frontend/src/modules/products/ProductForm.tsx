@@ -1,23 +1,29 @@
 import { useState } from "react";
+
 import Button from "../../components/Button";
-import type { Product } from "../../types/product";
+
+import type { Category } from "../../types/category";
+import type { ProductCreate } from "../../types/product";
+
 
 interface ProductFormProps {
-  categories: string[];
-  onSubmit: (product: Omit<Product, "id">) => void;
+  categories: Category[];
+  onSubmit: (product: ProductCreate) => void;
   onCancel: () => void;
 }
+
 
 export default function ProductForm({
   categories,
   onSubmit,
   onCancel,
 }: ProductFormProps) {
+  const [sku, setSku] = useState("");
   const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
-  const [stock, setStock] = useState("");
-  const [category, setCategory] = useState("");
+  const [stock, setStock] = useState("0");
+  const [categoryId, setCategoryId] = useState("");
+
 
   function handleSubmit(
     event: React.FormEvent<HTMLFormElement>,
@@ -26,30 +32,34 @@ export default function ProductForm({
 
     const numericPrice = Number(price);
     const numericStock = Number(stock);
+    const numericCategoryId = Number(categoryId);
 
     if (
+      !sku.trim() ||
       !name.trim() ||
-      !price ||
+      !categoryId ||
       numericPrice < 0 ||
-      !stock ||
       numericStock < 0
     ) {
       return;
     }
 
+    // El backend valida también categoría, SKU y valores.
     onSubmit({
+      category_id: numericCategoryId,
+      sku: sku.trim(),
       name: name.trim(),
-      description: description.trim(),
       price: numericPrice,
       stock: numericStock,
-      categoryId: undefined,
-      categoryName: category || "Sin categoría",
-      status: numericStock > 0 ? "active" : "inactive",
     });
   }
 
+
   return (
-    <form className="customer-form" onSubmit={handleSubmit}>
+    <form
+      className="customer-form"
+      onSubmit={handleSubmit}
+    >
       <div className="customer-form__header">
         <div>
           <span>Registro</span>
@@ -59,10 +69,24 @@ export default function ProductForm({
 
       <div className="customer-form__grid">
         <label>
+          SKU
+          <input
+            value={sku}
+            onChange={(event) =>
+              setSku(event.target.value)
+            }
+            placeholder="Ej. LAP-001"
+            required
+          />
+        </label>
+
+        <label>
           Nombre del producto
           <input
             value={name}
-            onChange={(event) => setName(event.target.value)}
+            onChange={(event) =>
+              setName(event.target.value)
+            }
             placeholder="Ej. Laptop empresarial"
             required
           />
@@ -71,14 +95,22 @@ export default function ProductForm({
         <label>
           Categoría
           <select
-            value={category}
-            onChange={(event) => setCategory(event.target.value)}
+            value={categoryId}
+            onChange={(event) =>
+              setCategoryId(event.target.value)
+            }
+            required
           >
-            <option value="">Seleccionar categoría</option>
+            <option value="">
+              Seleccionar categoría
+            </option>
 
-            {categories.map((item) => (
-              <option key={item} value={item}>
-                {item}
+            {categories.map((category) => (
+              <option
+                key={category.id}
+                value={category.id}
+              >
+                {category.name}
               </option>
             ))}
           </select>
@@ -91,33 +123,25 @@ export default function ProductForm({
             min="0"
             step="0.01"
             value={price}
-            onChange={(event) => setPrice(event.target.value)}
+            onChange={(event) =>
+              setPrice(event.target.value)
+            }
             placeholder="0.00"
             required
           />
         </label>
 
         <label>
-          Stock
+          Stock inicial
           <input
             type="number"
             min="0"
+            step="1"
             value={stock}
-            onChange={(event) => setStock(event.target.value)}
-            placeholder="0"
-            required
-          />
-        </label>
-
-        <label className="form-field--full">
-          Descripción
-          <textarea
-            value={description}
             onChange={(event) =>
-              setDescription(event.target.value)
+              setStock(event.target.value)
             }
-            placeholder="Descripción del producto"
-            rows={3}
+            required
           />
         </label>
       </div>

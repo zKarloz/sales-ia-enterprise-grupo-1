@@ -1,39 +1,50 @@
 import { useState } from "react";
+
 import Button from "../../components/Button";
-import type { Customer } from "../../types/customer";
+
+import type { CustomerCreate } from "../../types/customer";
+
 
 interface CustomerFormProps {
-  onSubmit: (customer: Omit<Customer, "id">) => void;
+  onSubmit: (customer: CustomerCreate) => void;
   onCancel: () => void;
 }
+
 
 export default function CustomerForm({
   onSubmit,
   onCancel,
 }: CustomerFormProps) {
-  const [name, setName] = useState("");
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [document, setDocument] = useState("");
+  const [address, setAddress] = useState("");
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+
+  function handleSubmit(
+    event: React.FormEvent<HTMLFormElement>,
+  ) {
     event.preventDefault();
 
-    if (!name.trim() || !email.trim()) {
+    // El nombre es el único dato obligatorio del formulario.
+    if (!fullName.trim()) {
       return;
     }
 
     onSubmit({
-      name: name.trim(),
-      email: email.trim(),
-      phone: phone.trim(),
-      document: document.trim(),
-      status: "active",
+      full_name: fullName.trim(),
+      email: email.trim() || null,
+      phone: phone.trim() || null,
+      address: address.trim() || null,
     });
   }
 
+
   return (
-    <form className="customer-form" onSubmit={handleSubmit}>
+    <form
+      className="customer-form"
+      onSubmit={handleSubmit}
+    >
       <div className="customer-form__header">
         <div>
           <span>Registro</span>
@@ -45,8 +56,10 @@ export default function CustomerForm({
         <label>
           Nombre / Razón social
           <input
-            value={name}
-            onChange={(event) => setName(event.target.value)}
+            value={fullName}
+            onChange={(event) =>
+              setFullName(event.target.value)
+            }
             placeholder="Ej. Empresa Andina SAC"
             required
           />
@@ -57,9 +70,10 @@ export default function CustomerForm({
           <input
             type="email"
             value={email}
-            onChange={(event) => setEmail(event.target.value)}
+            onChange={(event) =>
+              setEmail(event.target.value)
+            }
             placeholder="correo@empresa.com"
-            required
           />
         </label>
 
@@ -67,17 +81,21 @@ export default function CustomerForm({
           Teléfono
           <input
             value={phone}
-            onChange={(event) => setPhone(event.target.value)}
+            onChange={(event) =>
+              setPhone(event.target.value)
+            }
             placeholder="999 999 999"
           />
         </label>
 
         <label>
-          Documento
+          Dirección
           <input
-            value={document}
-            onChange={(event) => setDocument(event.target.value)}
-            placeholder="RUC / DNI"
+            value={address}
+            onChange={(event) =>
+              setAddress(event.target.value)
+            }
+            placeholder="Ej. Av. Arequipa 1234"
           />
         </label>
       </div>

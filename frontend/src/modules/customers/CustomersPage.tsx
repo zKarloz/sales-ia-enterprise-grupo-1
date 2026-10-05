@@ -9,7 +9,7 @@ import CustomerTable from "./CustomerTable";
 import CustomerForm from "./CustomerForm";
 import { useApi } from "../../hooks/useApi";
 import { createCustomer, deleteCustomer } from "../../services/customerService";
-import type { Customer } from "../../types/customer";
+import type { Customer, CustomerCreate } from "../../types/customer";
 
 export default function CustomersPage() {
   const [showForm, setShowForm] = useState(false);
@@ -21,7 +21,7 @@ export default function CustomersPage() {
     loading,
     error,
     refetch,
-  } = useApi<Customer[]>("/customers");
+  } = useApi<Customer[]>("/api/customers");
 
   async function handleDeleteCustomer(id: number) {
     try {
@@ -37,7 +37,7 @@ export default function CustomersPage() {
   }
 
   async function handleCreateCustomer(
-    customer: Omit<Customer, "id">,
+    customer: CustomerCreate,
   ) {
     try {
       setCreating(true);
