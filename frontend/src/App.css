@@ -414,6 +414,7 @@
     grid-template-columns: 1fr;
   }
 }
+
 /* REUSABLE UI COMPONENTS */
 
 .ui-card {
@@ -533,6 +534,7 @@
   background: #fdecec;
   color: #b42318;
 }
+
 /* CUSTOMERS */
 
 .customer-toolbar {
@@ -691,6 +693,7 @@
     grid-template-columns: 1fr;
   }
 }
+
 /* PRODUCTS */
 
 .product-toolbar {
@@ -819,6 +822,7 @@
     grid-column: auto;
   }
 }
+
 /* ANALYTICS */
 
 .page {
@@ -975,6 +979,7 @@
 }
 
 @media (max-width: 800px) {
+
   .stats-grid,
   .analytics-stats {
     grid-template-columns: repeat(2, 1fr);
@@ -986,8 +991,310 @@
 }
 
 @media (max-width: 500px) {
+
   .stats-grid,
   .analytics-stats {
     grid-template-columns: 1fr;
+  }
+}
+
+/* ========================================
+   SHARED FORMS
+   ======================================== */
+
+.form-card {
+  width: 100%;
+  margin-bottom: 24px;
+  padding: 24px;
+  background: #ffffff;
+  border: 1px solid #e3e9f1;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+}
+
+.form-card__header {
+  margin-bottom: 24px;
+}
+
+.form-card__header span {
+  color: #0087a8;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.form-card__header h1,
+.form-card__header h2 {
+  margin: 6px 0;
+  color: #172033;
+}
+
+.form-card__header h1 {
+  font-size: 28px;
+}
+
+.form-card__header h2 {
+  font-size: 20px;
+}
+
+.form-card__header p {
+  margin: 6px 0 0;
+  color: #718096;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.form-field label {
+  color: #374151;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.form-field input,
+.form-field select,
+.form-field textarea {
+  width: 100%;
+  min-height: 42px;
+  padding: 10px 12px;
+  border: 1px solid #d8e0ea;
+  border-radius: 8px;
+  outline: none;
+  background: #ffffff;
+  color: #172033;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.form-field textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.form-field input:focus,
+.form-field select:focus,
+.form-field textarea:focus {
+  border-color: #19c3e6;
+  box-shadow: 0 0 0 3px rgba(25, 195, 230, 0.12);
+}
+
+.form-field input:disabled,
+.form-field select:disabled,
+.form-field textarea:disabled {
+  cursor: not-allowed;
+  background: #f7f9fc;
+  color: #94a3b8;
+}
+
+.form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+
+/* ========================================
+   LOGIN
+   ======================================== */
+
+.login-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 32px 20px;
+  background:
+    radial-gradient(circle at top right,
+      rgba(25, 195, 230, 0.12),
+      transparent 35%),
+    #f4f7fb;
+}
+
+.login-page .form-card {
+  width: 100%;
+  max-width: 460px;
+  margin: 0;
+  padding: 32px;
+  box-shadow: 0 18px 50px rgba(11, 31, 58, 0.08);
+}
+
+.login-page .form-field+.form-field {
+  margin-top: 16px;
+}
+
+.login-page .form-actions {
+  margin-top: 24px;
+}
+
+.login-page .form-actions .ui-button {
+  width: 100%;
+}
+
+
+/* ========================================
+   SALES
+   ======================================== */
+
+.sale-items {
+  margin-top: 28px;
+  padding-top: 22px;
+  border-top: 1px solid #e3e9f1;
+}
+
+.sale-items h3 {
+  margin: 0 0 18px;
+  color: #172033;
+  font-size: 16px;
+}
+
+.sale-items .form-grid {
+  align-items: end;
+  margin-bottom: 14px;
+  padding: 16px;
+  background: #f7f9fc;
+  border: 1px solid #edf1f5;
+  border-radius: 10px;
+}
+
+
+/* ========================================
+   GENERIC TABLES
+   ======================================== */
+
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  background: #ffffff;
+  border: 1px solid #e3e9f1;
+  border-radius: 12px;
+}
+
+.data-table {
+  width: 100%;
+  min-width: 780px;
+  border-collapse: collapse;
+}
+
+.data-table thead {
+  background: #f7f9fc;
+}
+
+.data-table th {
+  padding: 14px 18px;
+  text-align: left;
+  color: #718096;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.data-table td {
+  padding: 16px 18px;
+  border-top: 1px solid #edf1f5;
+  color: #374151;
+  font-size: 13px;
+  vertical-align: middle;
+}
+
+.data-table tbody tr {
+  transition: background 0.15s ease;
+}
+
+.data-table tbody tr:hover {
+  background: #fafcff;
+}
+
+.data-table td strong {
+  color: #172033;
+}
+
+
+/* ========================================
+   TOPBAR IMPROVEMENTS
+   ======================================== */
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.topbar__user .table-action {
+  margin-left: 8px;
+  padding: 8px 12px;
+  background: #f1f5f9;
+  color: #475569;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
+}
+
+.topbar__user .table-action:hover {
+  background: #e2e8f0;
+  color: #172033;
+}
+
+
+/* ========================================
+   LAYOUT IMPROVEMENTS
+   ======================================== */
+
+@media (min-width: 701px) {
+  .sidebar {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+  }
+}
+
+@media (max-width: 700px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .form-card {
+    padding: 18px;
+  }
+
+  .login-page .form-card {
+    padding: 24px 20px;
+  }
+
+  .form-actions {
+    flex-wrap: wrap;
+  }
+
+  .topbar {
+    height: auto;
+    min-height: 82px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+    gap: 12px;
+  }
+
+  .topbar__user {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .sale-items .form-grid {
+    padding: 12px;
   }
 }
