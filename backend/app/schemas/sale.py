@@ -15,7 +15,6 @@ class SaleCreate(BaseModel):
     """Datos requeridos para registrar una venta."""
 
     customer_id: int = Field(gt=0)
-    seller_id: int = Field(gt=0)
     payment_method: str
     items: list[SaleItemCreate] = Field(min_length=1)
 

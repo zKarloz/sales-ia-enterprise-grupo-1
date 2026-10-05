@@ -1,7 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.api.dependencies.auth import get_current_user
+from app.api.dependencies.roles import require_roles
+
+from app.schemas.auth import CurrentUserResponse
+
 from app.core.database import get_db
+from app.core.roles import ROLE_MANAGER, ROLE_SELLER
+
 from app.schemas.sale import SaleCreate, SaleResponse
 from app.services.sale_service import (
     create_sale,
@@ -17,16 +24,29 @@ router = APIRouter(
 
 
 @router.get("", response_model=list[SaleResponse])
-def get_sales(db: Session = Depends(get_db)):
+def get_sales(
+    db: Session = Depends(get_db),
+    current_user: CurrentUserResponse = Depends(
+        require_roles(
+            ROLE_MANAGER,
+            ROLE_SELLER,
+        )
+    ),
+):
     """Lista las ventas registradas."""
 
     return list_sales(db)
-
 
 @router.get("/{sale_id}", response_model=SaleResponse)
 def get_sale_by_id(
     sale_id: int,
     db: Session = Depends(get_db),
+    current_user: CurrentUserResponse = Depends(
+        require_roles(
+            ROLE_MANAGER,
+            ROLE_SELLER,
+        )
+    ),
 ):
     """Obtiene una venta específica."""
 
@@ -49,11 +69,18 @@ def get_sale_by_id(
 def post_sale(
     data: SaleCreate,
     db: Session = Depends(get_db),
+    current_user: CurrentUserResponse = Depends(
+        require_roles(ROLE_SELLER)
+    ),
 ):
-    """Registra una venta y actualiza inventario."""
+    """Registra una venta para el usuario autenticado."""
 
     try:
-        return create_sale(db, data)
+        return create_sale(
+            db=db,
+            data=data,
+            seller_id=current_user.id,
+        )
 
     except LookupError as exc:
         raise HTTPException(

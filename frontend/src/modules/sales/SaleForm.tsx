@@ -8,13 +8,11 @@ import type {
   SaleCreate,
   SaleItemCreate,
 } from "../../types/sale";
-import type { UserOption } from "../../types/user";
 
 
 interface SaleFormProps {
   customers: Customer[];
   products: Product[];
-  sellers: UserOption[];
   onSubmit: (sale: SaleCreate) => void;
   onCancel: () => void;
 }
@@ -29,12 +27,10 @@ interface FormItem {
 export default function SaleForm({
   customers,
   products,
-  sellers,
   onSubmit,
   onCancel,
 }: SaleFormProps) {
   const [customerId, setCustomerId] = useState("");
-  const [sellerId, setSellerId] = useState("");
   const [paymentMethod, setPaymentMethod] =
     useState("EFECTIVO");
 
@@ -91,7 +87,6 @@ export default function SaleForm({
 
     if (
       !customerId ||
-      !sellerId ||
       !paymentMethod ||
       items.length === 0
     ) {
@@ -117,7 +112,6 @@ export default function SaleForm({
     // Precio, subtotal y total se calculan en backend.
     onSubmit({
       customer_id: Number(customerId),
-      seller_id: Number(sellerId),
       payment_method: paymentMethod,
       items: parsedItems,
     });
@@ -160,34 +154,6 @@ export default function SaleForm({
                 value={customer.id}
               >
                 {customer.full_name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="form-field">
-          <label htmlFor="seller">
-            Vendedor
-          </label>
-
-          <select
-            id="seller"
-            value={sellerId}
-            onChange={(event) =>
-              setSellerId(event.target.value)
-            }
-            required
-          >
-            <option value="">
-              Seleccionar vendedor
-            </option>
-
-            {sellers.map((seller) => (
-              <option
-                key={seller.id}
-                value={seller.id}
-              >
-                {seller.full_name}
               </option>
             ))}
           </select>

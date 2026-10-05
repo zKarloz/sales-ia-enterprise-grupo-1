@@ -5,10 +5,12 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from app.api.routes import analyses, categories, customers, datasets, insights, inventory, probability, products, sales, statistics, users
+from app.api.routes import analyses, auth, categories, customers, datasets, insights, inventory, probability, products, sales, statistics, users
 from app.core.config import settings
 from app.core.database import engine, get_db
 from app.statistics.analytics import calculate_statistics, get_analytics_filters
+from app.api.dependencies.auth import get_current_user
+from app.schemas.auth import CurrentUserResponse
 
 app = FastAPI(
     title="Sales IA Enterprise API",
@@ -25,7 +27,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Endpoints de los módulos comerciales.
+# Autenticación
+app.include_router(auth.router, prefix="/api")
+
+# Endpoints de los módulos comerciales
 app.include_router(categories.router, prefix="/api")
 app.include_router(customers.router, prefix="/api")
 app.include_router(products.router, prefix="/api")
@@ -73,6 +78,9 @@ def dashboard_summary(
     seller: str = "all",
     category: str = "all",
     db: Session = Depends(get_db),
+    current_user: CurrentUserResponse = Depends(
+        get_current_user,
+    ),
 ):
     """Genera indicadores desde las ventas reales."""
 
@@ -91,6 +99,9 @@ def dashboard_summary(
 @app.get("/api/dashboard/filters")
 def dashboard_filters(
     db: Session = Depends(get_db),
+    current_user: CurrentUserResponse = Depends(
+        get_current_user,
+    ),
 ):
     """Devuelve las opciones disponibles para Analytics."""
 

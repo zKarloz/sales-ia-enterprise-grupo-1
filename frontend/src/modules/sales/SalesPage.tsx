@@ -21,8 +21,20 @@ import type { UserOption } from "../../types/user";
 import SaleForm from "./SaleForm";
 import SaleTable from "./SaleTable";
 
+import {
+  ROLE_ADMIN,
+  ROLE_SELLER,
+} from "../../constants/roles";
+
+import { useAuth } from "../../context/AuthContext";
 
 export default function SalesPage() {
+  const { user } = useAuth();
+
+  const canCreateSale =
+    user?.role === ROLE_ADMIN ||
+    user?.role === ROLE_SELLER;
+
   const [showForm, setShowForm] = useState(false);
   const [actionError, setActionError] =
     useState<string | null>(null);
@@ -124,14 +136,16 @@ export default function SalesPage() {
         title="Ventas"
         description="Gestiona las ventas y operaciones comerciales."
         action={
-          <Button
-            onClick={() => {
-              setActionError(null);
-              setShowForm(true);
-            }}
-          >
-            + Nueva venta
-          </Button>
+          canCreateSale ? (
+            <Button
+              onClick={() => {
+                setActionError(null);
+                setShowForm(true);
+              }}
+            >
+              + Nueva venta
+            </Button>
+          ) : undefined
         }
       />
 
@@ -144,7 +158,6 @@ export default function SalesPage() {
           <SaleForm
             customers={customerList}
             products={productList}
-            sellers={sellerList}
             onSubmit={handleCreateSale}
             onCancel={() => setShowForm(false)}
           />

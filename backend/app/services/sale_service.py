@@ -76,13 +76,14 @@ def get_sale(
 def create_sale(
     db: Session,
     data: SaleCreate,
+    seller_id: int,
 ) -> dict:
     """Registra una venta completa dentro de una sola transacción."""
 
     try:
         # Validamos cliente y vendedor.
         customer = db.get(Customer, data.customer_id)
-        seller = db.get(User, data.seller_id)
+        seller = db.get(User, seller_id)
 
         if customer is None:
             raise LookupError("Cliente no encontrado.")
@@ -129,7 +130,7 @@ def create_sale(
         # Creamos primero la cabecera de venta.
         sale = Sale(
             customer_id=data.customer_id,
-            seller_id=data.seller_id,
+            seller_id=seller_id,
             total_amount=total_amount,
             payment_method=data.payment_method,
             status="COMPLETED",
@@ -159,7 +160,7 @@ def create_sale(
 
             movement = InventoryMovement(
                 product_id=product.id,
-                user_id=data.seller_id,
+                user_id=seller_id,
                 movement_type="OUT",
                 quantity=quantity,
                 reason=f"Venta #{sale.id}",
@@ -169,7 +170,7 @@ def create_sale(
 
         # Dejamos trazabilidad de la operación.
         audit = AuditLog(
-            user_id=data.seller_id,
+            user_id=seller_id,
             action="CREATE_SALE",
             table_name="sales",
             record_id=sale.id,

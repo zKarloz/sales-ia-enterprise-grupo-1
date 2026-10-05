@@ -1,17 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.api.dependencies.roles import require_roles
+
 from app.core.database import get_db
-from app.schemas.probability import (
-    BayesRequest,
-    BayesResponse,
-    ProbabilityRequest,
-    ProbabilityResponse,
-)
-from app.services.probability_service import (
-    calculate_bayes,
-    calculate_probability,
-)
+from app.core.roles import ROLE_ANALYST
+
+from app.schemas.probability import BayesRequest, BayesResponse, ProbabilityRequest, ProbabilityResponse
+from app.schemas.auth import CurrentUserResponse
+
+from app.services.probability_service import calculate_bayes, calculate_probability
 
 
 router = APIRouter(
@@ -24,7 +22,12 @@ router = APIRouter(
     "/simple",
     response_model=ProbabilityResponse,
 )
-def post_probability(data: ProbabilityRequest):
+def post_probability(
+    data: ProbabilityRequest,
+    current_user: CurrentUserResponse = Depends(
+        require_roles(ROLE_ANALYST),
+    ),
+):
     """Calcula una probabilidad simple."""
 
     try:
@@ -51,6 +54,9 @@ def post_probability(data: ProbabilityRequest):
 def post_bayes(
     data: BayesRequest,
     db: Session = Depends(get_db),
+    current_user: CurrentUserResponse = Depends(
+        require_roles(ROLE_ANALYST),
+    ),
 ):
     """Calcula Bayes y almacena el análisis."""
 

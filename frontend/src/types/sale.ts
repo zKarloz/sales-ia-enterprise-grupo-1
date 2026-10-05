@@ -7,7 +7,6 @@ export interface SaleItemCreate {
 // Payload aceptado por POST /api/sales.
 export interface SaleCreate {
   customer_id: number;
-  seller_id: number;
   payment_method: string;
   items: SaleItemCreate[];
 }

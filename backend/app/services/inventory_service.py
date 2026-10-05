@@ -22,12 +22,13 @@ def list_movements(db: Session) -> list[InventoryMovement]:
 def create_movement(
     db: Session,
     data: InventoryMovementCreate,
+    user_id: int,
 ) -> InventoryMovement:
     """Actualiza stock y registra el movimiento en una transacción."""
 
     try:
         # Validamos al usuario responsable.
-        user = db.get(User, data.user_id)
+        user = db.get(User, user_id)
 
         if user is None:
             raise LookupError("Usuario no encontrado.")
@@ -56,7 +57,7 @@ def create_movement(
         # Guardamos el movimiento histórico.
         movement = InventoryMovement(
             product_id=data.product_id,
-            user_id=data.user_id,
+            user_id=user_id,
             movement_type=data.movement_type,
             quantity=data.quantity,
             reason=data.reason,
@@ -67,7 +68,7 @@ def create_movement(
 
         # Registramos trazabilidad.
         audit = AuditLog(
-            user_id=data.user_id,
+            user_id=user_id,
             action="UPDATE_STOCK",
             table_name="products",
             record_id=product.id,

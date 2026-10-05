@@ -1,18 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.api.dependencies.roles import require_roles
+
 from app.core.database import get_db
-from app.schemas.statistics import (
-    CompareResponse,
-    MeanResponse,
-    MedianResponse,
-    StatisticalRequest,
-)
-from app.services.statistics_service import (
-    calculate_mean,
-    calculate_median,
-    compare_mean_median,
-)
+from app.core.roles import ROLE_ANALYST
+
+from app.schemas.statistics import CompareResponse, MeanResponse, MedianResponse, StatisticalRequest
+from app.schemas.auth import CurrentUserResponse
+
+from app.services.statistics_service import calculate_mean, calculate_median, compare_mean_median
 
 
 router = APIRouter(
@@ -25,6 +22,9 @@ router = APIRouter(
 def post_mean(
     data: StatisticalRequest,
     db: Session = Depends(get_db),
+    current_user: CurrentUserResponse = Depends(
+        require_roles(ROLE_ANALYST),
+    ),
 ):
     """Calcula y registra la media."""
 
@@ -42,6 +42,9 @@ def post_mean(
 def post_median(
     data: StatisticalRequest,
     db: Session = Depends(get_db),
+    current_user: CurrentUserResponse = Depends(
+        require_roles(ROLE_ANALYST),
+    ),
 ):
     """Calcula y registra la mediana."""
 
@@ -59,6 +62,9 @@ def post_median(
 def post_compare(
     data: StatisticalRequest,
     db: Session = Depends(get_db),
+    current_user: CurrentUserResponse = Depends(
+        require_roles(ROLE_ANALYST),
+    ),
 ):
     """Compara media y mediana."""
 

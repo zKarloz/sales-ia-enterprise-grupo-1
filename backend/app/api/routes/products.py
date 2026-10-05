@@ -1,19 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.api.dependencies.roles import require_roles
+from app.api.dependencies.auth import get_current_user
+
 from app.core.database import get_db
-from app.schemas.product import (
-    ProductCreate,
-    ProductResponse,
-    ProductUpdate,
-)
-from app.services.product_service import (
-    create_product,
-    delete_product,
-    get_product,
-    list_products,
-    update_product,
-)
+from app.core.roles import ROLE_MANAGER, ROLE_SELLER, ROLE_WAREHOUSE
+
+from app.schemas.product import ProductCreate, ProductResponse, ProductUpdate
+from app.schemas.auth import CurrentUserResponse
+
+from app.services.product_service import create_product, delete_product, get_product, list_products, update_product
 
 
 router = APIRouter(
@@ -23,7 +20,12 @@ router = APIRouter(
 
 
 @router.get("", response_model=list[ProductResponse])
-def get_products(db: Session = Depends(get_db)):
+def get_products(
+    db: Session = Depends(get_db),
+    current_user: CurrentUserResponse = Depends(
+        get_current_user,
+    ),
+):
     """Lista todos los productos."""
 
     return list_products(db)
@@ -33,6 +35,9 @@ def get_products(db: Session = Depends(get_db)):
 def get_product_by_id(
     product_id: int,
     db: Session = Depends(get_db),
+    current_user: CurrentUserResponse = Depends(
+        get_current_user,
+    ),
 ):
     """Obtiene un producto específico."""
 
@@ -55,6 +60,11 @@ def get_product_by_id(
 def post_product(
     data: ProductCreate,
     db: Session = Depends(get_db),
+    current_user: CurrentUserResponse = Depends(
+        require_roles(
+            ROLE_WAREHOUSE,
+        )
+    ),
 ):
     """Registra un nuevo producto."""
 
@@ -73,6 +83,11 @@ def put_product(
     product_id: int,
     data: ProductUpdate,
     db: Session = Depends(get_db),
+    current_user: CurrentUserResponse = Depends(
+        require_roles(
+            ROLE_WAREHOUSE,
+        )
+    ),
 ):
     """Actualiza un producto."""
 
@@ -101,6 +116,11 @@ def put_product(
 def remove_product(
     product_id: int,
     db: Session = Depends(get_db),
+    current_user: CurrentUserResponse = Depends(
+        require_roles(
+            ROLE_WAREHOUSE,
+        )
+    ),
 ):
     """Elimina un producto."""
 

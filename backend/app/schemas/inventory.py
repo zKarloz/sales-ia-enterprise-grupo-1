@@ -8,7 +8,6 @@ class InventoryMovementCreate(BaseModel):
     """Movimiento manual de entrada o salida."""
 
     product_id: int = Field(gt=0)
-    user_id: int = Field(gt=0)
 
     # ADJUSTMENT se implementará luego con una regla específica.
     movement_type: Literal["IN", "OUT"]

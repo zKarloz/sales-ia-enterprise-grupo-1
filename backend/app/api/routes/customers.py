@@ -1,19 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.api.dependencies.roles import require_roles
+
 from app.core.database import get_db
-from app.schemas.customer import (
-    CustomerCreate,
-    CustomerResponse,
-    CustomerUpdate,
-)
-from app.services.customer_service import (
-    create_customer,
-    delete_customer,
-    get_customer,
-    list_customers,
-    update_customer,
-)
+from app.core.roles import ROLE_SELLER
+
+from app.schemas.customer import CustomerCreate, CustomerResponse, CustomerUpdate
+from app.schemas.auth import CurrentUserResponse
+
+from app.services.customer_service import create_customer, delete_customer, get_customer, list_customers, update_customer
 
 
 router = APIRouter(
@@ -23,7 +19,12 @@ router = APIRouter(
 
 
 @router.get("", response_model=list[CustomerResponse])
-def get_customers(db: Session = Depends(get_db)):
+def get_customers(
+    db: Session = Depends(get_db),
+    current_user: CurrentUserResponse = Depends(
+    require_roles(ROLE_SELLER),
+    ),
+):
     """Lista todos los clientes."""
 
     return list_customers(db)
@@ -33,6 +34,9 @@ def get_customers(db: Session = Depends(get_db)):
 def get_customer_by_id(
     customer_id: int,
     db: Session = Depends(get_db),
+    current_user: CurrentUserResponse = Depends(
+        require_roles(ROLE_SELLER),
+    ),
 ):
     """Obtiene un cliente específico."""
 
@@ -55,6 +59,9 @@ def get_customer_by_id(
 def post_customer(
     data: CustomerCreate,
     db: Session = Depends(get_db),
+    current_user: CurrentUserResponse = Depends(
+        require_roles(ROLE_SELLER),
+    ),
 ):
     """Registra un cliente."""
 
@@ -73,6 +80,9 @@ def put_customer(
     customer_id: int,
     data: CustomerUpdate,
     db: Session = Depends(get_db),
+    current_user: CurrentUserResponse = Depends(
+        require_roles(ROLE_SELLER),
+    ),
 ):
     """Actualiza un cliente existente."""
 
@@ -101,6 +111,9 @@ def put_customer(
 def remove_customer(
     customer_id: int,
     db: Session = Depends(get_db),
+    current_user: CurrentUserResponse = Depends(
+        require_roles(ROLE_SELLER),
+    ),
 ):
     """Elimina un cliente."""
 

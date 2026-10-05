@@ -1,16 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.api.dependencies.roles import require_roles
+from app.api.dependencies.auth import get_current_user
+
 from app.core.database import get_db
-from app.schemas.insight import (
-    InsightCreate,
-    InsightResponse,
-)
-from app.services.insight_service import (
-    create_insight,
-    get_insight,
-    list_insights,
-)
+from app.core.roles import ROLE_MANAGER, ROLE_ANALYST
+
+from app.schemas.insight import InsightCreate, InsightResponse
+from app.schemas.auth import CurrentUserResponse
+
+from app.services.insight_service import create_insight, get_insight, list_insights
 
 
 router = APIRouter(
@@ -20,7 +20,12 @@ router = APIRouter(
 
 
 @router.get("", response_model=list[InsightResponse])
-def get_insights(db: Session = Depends(get_db)):
+def get_insights(
+    db: Session = Depends(get_db),
+    current_user: CurrentUserResponse = Depends(
+        get_current_user,
+    ),
+):
     """Lista los insights."""
 
     return list_insights(db)
@@ -33,6 +38,9 @@ def get_insights(db: Session = Depends(get_db)):
 def get_insight_by_id(
     insight_id: int,
     db: Session = Depends(get_db),
+    current_user: CurrentUserResponse = Depends(
+        get_current_user,
+    ),
 ):
     """Obtiene un insight."""
 
@@ -55,6 +63,9 @@ def get_insight_by_id(
 def post_insight(
     data: InsightCreate,
     db: Session = Depends(get_db),
+    current_user: CurrentUserResponse = Depends(
+        require_roles(ROLE_ANALYST),
+    ),
 ):
     """Registra un insight."""
 

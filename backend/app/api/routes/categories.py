@@ -1,19 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.api.dependencies.roles import require_roles
+
 from app.core.database import get_db
-from app.schemas.category import (
-    CategoryCreate,
-    CategoryResponse,
-    CategoryUpdate,
-)
-from app.services.category_service import (
-    create_category,
-    delete_category,
-    get_category,
-    list_categories,
-    update_category,
-)
+from app.core.roles import ROLE_MANAGER, ROLE_SELLER, ROLE_WAREHOUSE
+
+from app.schemas.category import CategoryCreate, CategoryResponse, CategoryUpdate
+from app.schemas.auth import CurrentUserResponse
+
+from app.services.category_service import create_category, delete_category, get_category, list_categories, update_category
 
 
 router = APIRouter(
@@ -23,7 +19,16 @@ router = APIRouter(
 
 
 @router.get("", response_model=list[CategoryResponse])
-def get_categories(db: Session = Depends(get_db)):
+def get_categories(
+    db: Session = Depends(get_db),
+    current_user: CurrentUserResponse = Depends(
+        require_roles(
+            ROLE_MANAGER,
+            ROLE_SELLER,
+            ROLE_WAREHOUSE,
+        )
+    ),
+):
     """Lista las categorías."""
 
     return list_categories(db)
@@ -33,6 +38,13 @@ def get_categories(db: Session = Depends(get_db)):
 def get_category_by_id(
     category_id: int,
     db: Session = Depends(get_db),
+    current_user: CurrentUserResponse = Depends(
+        require_roles(
+            ROLE_MANAGER,
+            ROLE_SELLER,
+            ROLE_WAREHOUSE,
+        )
+    ),
 ):
     """Obtiene una categoría."""
 
@@ -55,6 +67,9 @@ def get_category_by_id(
 def post_category(
     data: CategoryCreate,
     db: Session = Depends(get_db),
+    current_user: CurrentUserResponse = Depends(
+        require_roles(ROLE_WAREHOUSE),
+    ),
 ):
     """Registra una categoría."""
 
@@ -66,6 +81,9 @@ def put_category(
     category_id: int,
     data: CategoryUpdate,
     db: Session = Depends(get_db),
+    current_user: CurrentUserResponse = Depends(
+        require_roles(ROLE_WAREHOUSE),
+    ),
 ):
     """Actualiza una categoría."""
 
@@ -87,6 +105,9 @@ def put_category(
 def remove_category(
     category_id: int,
     db: Session = Depends(get_db),
+    current_user: CurrentUserResponse = Depends(
+        require_roles(ROLE_WAREHOUSE),
+    ),
 ):
     """Elimina una categoría."""
 

@@ -7,6 +7,9 @@ class Settings(BaseSettings):
     secret_key: str
     cors_origins: str = "http://localhost:5173"
 
+    # Duración del JWT en minutos.
+    access_token_expire_minutes: int = 60
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

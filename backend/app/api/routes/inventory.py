@@ -1,15 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.api.dependencies.roles import require_roles
+
 from app.core.database import get_db
-from app.schemas.inventory import (
-    InventoryMovementCreate,
-    InventoryMovementResponse,
-)
-from app.services.inventory_service import (
-    create_movement,
-    list_movements,
-)
+from app.core.roles import ROLE_WAREHOUSE
+
+from app.schemas.inventory import InventoryMovementCreate, InventoryMovementResponse
+from app.schemas.auth import CurrentUserResponse
+
+from app.services.inventory_service import create_movement, list_movements
 
 
 router = APIRouter(
@@ -22,7 +22,12 @@ router = APIRouter(
     "",
     response_model=list[InventoryMovementResponse],
 )
-def get_movements(db: Session = Depends(get_db)):
+def get_movements(
+    db: Session = Depends(get_db),
+    current_user: CurrentUserResponse = Depends(
+        require_roles(ROLE_WAREHOUSE),
+    ),
+):
     """Lista los movimientos de inventario."""
 
     return list_movements(db)
@@ -36,11 +41,18 @@ def get_movements(db: Session = Depends(get_db)):
 def post_movement(
     data: InventoryMovementCreate,
     db: Session = Depends(get_db),
+    current_user: CurrentUserResponse = Depends(
+        require_roles(ROLE_WAREHOUSE),
+    ),
 ):
     """Registra una entrada o salida de inventario."""
 
     try:
-        return create_movement(db, data)
+        return create_movement(
+            db=db,
+            data=data,
+            user_id=current_user.id,
+        )
 
     except LookupError as exc:
         raise HTTPException(

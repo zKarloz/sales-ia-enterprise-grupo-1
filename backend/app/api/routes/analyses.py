@@ -1,8 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.api.dependencies.roles import require_roles
+
 from app.core.database import get_db
+from app.core.roles import ROLE_MANAGER, ROLE_ANALYST
+
 from app.schemas.analysis import AnalysisResponse
+from app.schemas.auth import CurrentUserResponse
+
 from app.services.analysis_service import (
     get_analysis,
     list_analyses,
@@ -20,6 +26,9 @@ def get_analyses(
     analysis_type: str | None = None,
     dataset_id: int | None = None,
     db: Session = Depends(get_db),
+    current_user: CurrentUserResponse = Depends(
+        require_roles(ROLE_MANAGER, ROLE_ANALYST),
+    ),
 ):
     """Lista el historial de análisis."""
 
@@ -37,6 +46,9 @@ def get_analyses(
 def get_analysis_by_id(
     analysis_id: int,
     db: Session = Depends(get_db),
+    current_user: CurrentUserResponse = Depends(
+        require_roles(ROLE_MANAGER, ROLE_ANALYST),
+    ),
 ):
     """Obtiene un análisis almacenado."""
 
