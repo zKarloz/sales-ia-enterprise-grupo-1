@@ -6,6 +6,7 @@ export interface Product {
   name: string;
   price: string;
   stock: number;
+  is_active: boolean;
   created_at: string | null;
 }
 

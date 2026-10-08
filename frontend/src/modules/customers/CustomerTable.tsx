@@ -1,5 +1,6 @@
 import Button from "../../components/Button";
 import EmptyState from "../../components/EmptyState";
+import StatusBadge from "../../components/StatusBadge";
 
 import type {
   Customer,
@@ -9,15 +10,16 @@ import type {
 interface CustomerTableProps {
   customers: Customer[];
 
-  onDelete: (
+  onToggleActive: (
     id: number,
+    isActive: boolean,
   ) => void | Promise<void>;
 }
 
 
 export default function CustomerTable({
   customers,
-  onDelete,
+  onToggleActive,
 }: CustomerTableProps) {
   if (customers.length === 0) {
     return (
@@ -43,7 +45,7 @@ export default function CustomerTable({
         <table
           className="
             w-full
-            min-w-[850px]
+            min-w-[950px]
             border-collapse
             text-left
           "
@@ -119,6 +121,21 @@ export default function CustomerTable({
                 className="
                   px-4
                   py-3.5
+                  text-[11px]
+                  font-bold
+                  uppercase
+                  tracking-[0.08em]
+                  text-slate-500
+                  dark:text-slate-400
+                "
+              >
+                Estado
+              </th>
+
+              <th
+                className="
+                  px-4
+                  py-3.5
                   text-right
                   text-[11px]
                   font-bold
@@ -146,11 +163,15 @@ export default function CustomerTable({
               (customer) => (
                 <tr
                   key={customer.id}
-                  className="
+                  className={`
                     transition-colors
                     hover:bg-slate-50/80
                     dark:hover:bg-slate-800/40
-                  "
+                    ${customer.is_active
+                      ? ""
+                      : "opacity-70"
+                    }
+                  `}
                 >
                   <td
                     className="
@@ -278,18 +299,45 @@ export default function CustomerTable({
                     className="
                       px-4
                       py-4
+                    "
+                  >
+                    <StatusBadge
+                      status={
+                        customer.is_active
+                          ? "active"
+                          : "inactive"
+                      }
+                      label={
+                        customer.is_active
+                          ? "Activo"
+                          : "Inactivo"
+                      }
+                    />
+                  </td>
+
+                  <td
+                    className="
+                      px-4
+                      py-4
                       text-right
                     "
                   >
                     <Button
-                      variant="danger"
+                      variant={
+                        customer.is_active
+                          ? "danger"
+                          : "secondary"
+                      }
                       onClick={() =>
-                        onDelete(
+                        onToggleActive(
                           customer.id,
+                          customer.is_active,
                         )
                       }
                     >
-                      Eliminar
+                      {customer.is_active
+                        ? "Desactivar"
+                        : "Activar"}
                     </Button>
                   </td>
                 </tr>

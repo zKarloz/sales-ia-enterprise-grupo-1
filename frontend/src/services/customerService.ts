@@ -40,10 +40,17 @@ export async function updateCustomer(
 }
 
 
-export async function deleteCustomer(
+export async function setCustomerActive(
   id: number,
-): Promise<void> {
-  return apiRequest<void>(`/api/customers/${id}`, {
-    method: "DELETE",
-  });
+  isActive: boolean,
+): Promise<Customer> {
+  return apiRequest<Customer>(
+    `/api/customers/${id}/status`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({
+        is_active: isActive,
+      }),
+    },
+  );
 }

@@ -24,6 +24,12 @@ class ProductUpdate(BaseModel):
     stock: int | None = Field(default=None, ge=0)
 
 
+class ProductStatusUpdate(BaseModel):
+    """Estado lógico del producto."""
+
+    is_active: bool
+
+
 class ProductResponse(BaseModel):
     """Representación del producto devuelta por la API."""
 
@@ -33,6 +39,7 @@ class ProductResponse(BaseModel):
     name: str
     price: Decimal
     stock: int
+    is_active: bool
     created_at: datetime | None
 
     model_config = ConfigDict(from_attributes=True)

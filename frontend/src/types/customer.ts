@@ -5,6 +5,7 @@ export interface Customer {
   email: string | null;
   phone: string | null;
   address: string | null;
+  is_active: boolean;
   created_at: string | null;
 }
 

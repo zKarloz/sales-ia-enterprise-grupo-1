@@ -15,8 +15,9 @@ interface ProductTableProps {
   products: Product[];
   categories: Category[];
 
-  onDelete: (
+  onToggleActive: (
     id: number,
+    isActive: boolean,
   ) => void | Promise<void>;
 }
 
@@ -24,7 +25,7 @@ interface ProductTableProps {
 export default function ProductTable({
   products,
   categories,
-  onDelete,
+  onToggleActive,
 }: ProductTableProps) {
   const categoryMap =
     new Map(
@@ -61,7 +62,7 @@ export default function ProductTable({
         <table
           className="
             w-full
-            min-w-[1000px]
+            min-w-[1120px]
             border-collapse
             text-left
           "
@@ -80,6 +81,7 @@ export default function ProductTable({
                 "Precio",
                 "Stock",
                 "Disponibilidad",
+                "Estado",
                 "Acciones",
               ].map(
                 (label) => (
@@ -129,11 +131,15 @@ export default function ProductTable({
                 return (
                   <tr
                     key={product.id}
-                    className="
+                    className={`
                       transition-colors
                       hover:bg-slate-50/80
                       dark:hover:bg-slate-800/40
-                    "
+                      ${product.is_active
+                        ? ""
+                        : "opacity-70"
+                      }
+                    `}
                   >
                     <td
                       className="
@@ -296,7 +302,12 @@ export default function ProductTable({
                         py-4
                       "
                     >
-                      {isEmpty ? (
+                      {!product.is_active ? (
+                        <StatusBadge
+                          status="inactive"
+                          label="No disponible"
+                        />
+                      ) : isEmpty ? (
                         <StatusBadge
                           status="error"
                           label="Sin stock"
@@ -318,18 +329,45 @@ export default function ProductTable({
                       className="
                         px-4
                         py-4
+                      "
+                    >
+                      <StatusBadge
+                        status={
+                          product.is_active
+                            ? "active"
+                            : "inactive"
+                        }
+                        label={
+                          product.is_active
+                            ? "Activo"
+                            : "Inactivo"
+                        }
+                      />
+                    </td>
+
+                    <td
+                      className="
+                        px-4
+                        py-4
                         text-right
                       "
                     >
                       <Button
-                        variant="danger"
+                        variant={
+                          product.is_active
+                            ? "danger"
+                            : "secondary"
+                        }
                         onClick={() =>
-                          onDelete(
+                          onToggleActive(
                             product.id,
+                            product.is_active,
                           )
                         }
                       >
-                        Eliminar
+                        {product.is_active
+                          ? "Desactivar"
+                          : "Activar"}
                       </Button>
                     </td>
                   </tr>
