@@ -1,9 +1,17 @@
-import type { Customer } from "../../types/customer";
+import Button from "../../components/Button";
+import EmptyState from "../../components/EmptyState";
+
+import type {
+  Customer,
+} from "../../types/customer";
 
 
 interface CustomerTableProps {
   customers: Customer[];
-  onDelete: (id: number) => void;
+
+  onDelete: (
+    id: number,
+  ) => void | Promise<void>;
 }
 
 
@@ -13,71 +21,283 @@ export default function CustomerTable({
 }: CustomerTableProps) {
   if (customers.length === 0) {
     return (
-      <div className="customer-empty">
-        <h3>No se encontraron clientes</h3>
-        <p>No existen clientes registrados.</p>
-      </div>
+      <EmptyState
+        title="No se encontraron clientes"
+        message="No existen clientes registrados."
+      />
     );
   }
 
+
   return (
-    <div className="customer-table-wrapper">
-      <table className="customer-table">
-        <thead>
-          <tr>
-            <th>Cliente</th>
-            <th>Contacto</th>
-            <th>Dirección</th>
-            <th>Registro</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
+    <div
+      className="
+        overflow-hidden
+        rounded-xl
+        border
+        border-slate-200
+        dark:border-slate-800
+      "
+    >
+      <div className="overflow-x-auto">
+        <table
+          className="
+            w-full
+            min-w-[850px]
+            border-collapse
+            text-left
+          "
+        >
+          <thead
+            className="
+              bg-slate-50
+              dark:bg-slate-950/70
+            "
+          >
+            <tr>
+              <th
+                className="
+                  px-4
+                  py-3.5
+                  text-[11px]
+                  font-bold
+                  uppercase
+                  tracking-[0.08em]
+                  text-slate-500
+                  dark:text-slate-400
+                "
+              >
+                Cliente
+              </th>
 
-        <tbody>
-          {customers.map((customer) => (
-            <tr key={customer.id}>
-              <td>
-                <strong>
-                  {customer.full_name}
-                </strong>
-              </td>
+              <th
+                className="
+                  px-4
+                  py-3.5
+                  text-[11px]
+                  font-bold
+                  uppercase
+                  tracking-[0.08em]
+                  text-slate-500
+                  dark:text-slate-400
+                "
+              >
+                Contacto
+              </th>
 
-              <td>
-                <span>
-                  {customer.email ?? "Sin correo"}
-                </span>
+              <th
+                className="
+                  px-4
+                  py-3.5
+                  text-[11px]
+                  font-bold
+                  uppercase
+                  tracking-[0.08em]
+                  text-slate-500
+                  dark:text-slate-400
+                "
+              >
+                Dirección
+              </th>
 
-                {customer.phone && (
-                  <small>{customer.phone}</small>
-                )}
-              </td>
+              <th
+                className="
+                  px-4
+                  py-3.5
+                  text-[11px]
+                  font-bold
+                  uppercase
+                  tracking-[0.08em]
+                  text-slate-500
+                  dark:text-slate-400
+                "
+              >
+                Registro
+              </th>
 
-              <td>
-                {customer.address ?? "—"}
-              </td>
-
-              <td>
-                {customer.created_at
-                  ? new Date(
-                    customer.created_at,
-                  ).toLocaleDateString("es-PE")
-                  : "—"}
-              </td>
-
-              <td>
-                <button
-                  className="table-action table-action--danger"
-                  onClick={() =>
-                    onDelete(customer.id)
-                  }
-                >
-                  Eliminar
-                </button>
-              </td>
+              <th
+                className="
+                  px-4
+                  py-3.5
+                  text-right
+                  text-[11px]
+                  font-bold
+                  uppercase
+                  tracking-[0.08em]
+                  text-slate-500
+                  dark:text-slate-400
+                "
+              >
+                Acciones
+              </th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+
+          <tbody
+            className="
+              divide-y
+              divide-slate-100
+              bg-white
+              dark:divide-slate-800
+              dark:bg-slate-900
+            "
+          >
+            {customers.map(
+              (customer) => (
+                <tr
+                  key={customer.id}
+                  className="
+                    transition-colors
+                    hover:bg-slate-50/80
+                    dark:hover:bg-slate-800/40
+                  "
+                >
+                  <td
+                    className="
+                      px-4
+                      py-4
+                    "
+                  >
+                    <div
+                      className="
+                        flex
+                        items-center
+                        gap-3
+                      "
+                    >
+                      <div
+                        className="
+                          grid
+                          h-9
+                          w-9
+                          shrink-0
+                          place-items-center
+                          rounded-lg
+                          bg-cyan-100
+                          text-sm
+                          font-bold
+                          text-cyan-800
+                          dark:bg-cyan-400/10
+                          dark:text-cyan-300
+                        "
+                      >
+                        {customer.full_name
+                          .trim()
+                          .charAt(0)
+                          .toUpperCase()}
+                      </div>
+
+                      <div className="min-w-0">
+                        <p
+                          className="
+                            font-semibold
+                            text-slate-900
+                            dark:text-slate-100
+                          "
+                        >
+                          {customer.full_name}
+                        </p>
+
+                        <p
+                          className="
+                            mt-0.5
+                            text-xs
+                            text-slate-400
+                            dark:text-slate-500
+                          "
+                        >
+                          ID #{customer.id}
+                        </p>
+                      </div>
+                    </div>
+                  </td>
+
+                  <td
+                    className="
+                      px-4
+                      py-4
+                      text-sm
+                    "
+                  >
+                    <p
+                      className="
+                        text-slate-700
+                        dark:text-slate-300
+                      "
+                    >
+                      {customer.email ??
+                        "Sin correo"}
+                    </p>
+
+                    <p
+                      className="
+                        mt-1
+                        text-xs
+                        text-slate-500
+                        dark:text-slate-400
+                      "
+                    >
+                      {customer.phone ??
+                        "Sin teléfono"}
+                    </p>
+                  </td>
+
+                  <td
+                    className="
+                      max-w-[240px]
+                      px-4
+                      py-4
+                      text-sm
+                      text-slate-600
+                      dark:text-slate-300
+                    "
+                  >
+                    {customer.address ??
+                      "Sin dirección"}
+                  </td>
+
+                  <td
+                    className="
+                      px-4
+                      py-4
+                      text-sm
+                      text-slate-600
+                      dark:text-slate-300
+                    "
+                  >
+                    {customer.created_at
+                      ? new Date(
+                        customer.created_at,
+                      ).toLocaleDateString(
+                        "es-PE",
+                      )
+                      : "—"}
+                  </td>
+
+                  <td
+                    className="
+                      px-4
+                      py-4
+                      text-right
+                    "
+                  >
+                    <Button
+                      variant="danger"
+                      onClick={() =>
+                        onDelete(
+                          customer.id,
+                        )
+                      }
+                    >
+                      Eliminar
+                    </Button>
+                  </td>
+                </tr>
+              ),
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

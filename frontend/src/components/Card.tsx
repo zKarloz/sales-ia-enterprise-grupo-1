@@ -1,9 +1,15 @@
+import type {
+  ReactNode,
+} from "react";
+
+
 interface CardProps {
   title?: string;
   subtitle?: string;
-  children: React.ReactNode;
+  children: ReactNode;
   className?: string;
 }
+
 
 export default function Card({
   title,
@@ -12,17 +18,66 @@ export default function Card({
   className = "",
 }: CardProps) {
   return (
-    <article className={`ui-card ${className}`}>
+    <article
+      className={`
+        overflow-hidden
+        rounded-2xl
+        border
+        border-slate-200
+        bg-white
+        shadow-sm
+        shadow-slate-950/[0.03]
+        transition-colors
+        dark:border-slate-800
+        dark:bg-slate-900
+        dark:shadow-black/10
+        ${className}
+      `}
+    >
       {(title || subtitle) && (
-        <header className="ui-card__header">
-          <div>
-            {title && <h2>{title}</h2>}
-            {subtitle && <p>{subtitle}</p>}
-          </div>
+        <header
+          className="
+            border-b
+            border-slate-100
+            px-5
+            py-4
+            sm:px-6
+            dark:border-slate-800
+          "
+        >
+          {title && (
+            <h2
+              className="
+                text-base
+                font-bold
+                text-slate-900
+                sm:text-lg
+                dark:text-slate-100
+              "
+            >
+              {title}
+            </h2>
+          )}
+
+          {subtitle && (
+            <p
+              className="
+                mt-1
+                text-sm
+                leading-6
+                text-slate-500
+                dark:text-slate-400
+              "
+            >
+              {subtitle}
+            </p>
+          )}
         </header>
       )}
 
-      <div className="ui-card__content">{children}</div>
+      <div className="p-5 sm:p-6">
+        {children}
+      </div>
     </article>
   );
 }

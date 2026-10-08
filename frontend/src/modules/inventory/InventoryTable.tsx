@@ -1,7 +1,12 @@
 import StatusBadge from "../../components/StatusBadge";
 
-import type { Category } from "../../types/category";
-import type { Product } from "../../types/product";
+import type {
+  Category,
+} from "../../types/category";
+
+import type {
+  Product,
+} from "../../types/product";
 
 
 interface InventoryTableProps {
@@ -14,84 +19,265 @@ export default function InventoryTable({
   products,
   categories,
 }: InventoryTableProps) {
-  // Relaciona category_id con el nombre real.
-  const categoryMap = new Map(
-    categories.map((category) => [
-      category.id,
-      category.name,
-    ]),
-  );
+  const categoryMap =
+    new Map(
+      categories.map(
+        (category) => [
+          category.id,
+          category.name,
+        ],
+      ),
+    );
+
 
   return (
-    <div className="table-wrapper">
-      <table className="data-table">
-        <thead>
-          <tr>
-            <th>Producto</th>
-            <th>SKU</th>
-            <th>Categoría</th>
-            <th>Stock</th>
-            <th>Precio</th>
-            <th>Estado</th>
-          </tr>
-        </thead>
+    <div
+      className="
+        overflow-hidden
+        rounded-xl
+        border
+        border-slate-200
+        dark:border-slate-800
+      "
+    >
+      <div className="overflow-x-auto">
+        <table
+          className="
+            w-full
+            min-w-[900px]
+            border-collapse
+            text-left
+          "
+        >
+          <thead
+            className="
+              bg-slate-50
+              dark:bg-slate-950/70
+            "
+          >
+            <tr>
+              {[
+                "Producto",
+                "SKU",
+                "Categoría",
+                "Stock",
+                "Precio",
+                "Estado",
+              ].map(
+                (label) => (
+                  <th
+                    key={label}
+                    className="
+                      px-4
+                      py-3.5
+                      text-[11px]
+                      font-bold
+                      uppercase
+                      tracking-[0.08em]
+                      text-slate-500
+                      dark:text-slate-400
+                    "
+                  >
+                    {label}
+                  </th>
+                ),
+              )}
+            </tr>
+          </thead>
 
-        <tbody>
-          {products.map((product) => {
-            const stockStatus =
-              product.stock === 0
-                ? "error"
-                : product.stock <= 10
-                  ? "pending"
-                  : "active";
+          <tbody
+            className="
+              divide-y
+              divide-slate-100
+              bg-white
+              dark:divide-slate-800
+              dark:bg-slate-900
+            "
+          >
+            {products.map(
+              (product) => {
+                const stockStatus =
+                  product.stock === 0
+                    ? "error"
+                    : product.stock <= 10
+                      ? "pending"
+                      : "active";
 
-            const stockLabel =
-              product.stock === 0
-                ? "Sin stock"
-                : product.stock <= 10
-                  ? "Stock bajo"
-                  : "Disponible";
+                const stockLabel =
+                  product.stock === 0
+                    ? "Sin stock"
+                    : product.stock <= 10
+                      ? "Stock bajo"
+                      : "Disponible";
 
-            return (
-              <tr key={product.id}>
-                <td>
-                  <strong>{product.name}</strong>
-                </td>
+                return (
+                  <tr
+                    key={product.id}
+                    className="
+                      transition-colors
+                      hover:bg-slate-50/80
+                      dark:hover:bg-slate-800/40
+                    "
+                  >
+                    <td
+                      className="
+                        px-4
+                        py-4
+                      "
+                    >
+                      <div
+                        className="
+                          flex
+                          items-center
+                          gap-3
+                        "
+                      >
+                        <div
+                          className="
+                            grid
+                            h-10
+                            w-10
+                            shrink-0
+                            place-items-center
+                            rounded-xl
+                            bg-cyan-100
+                            text-sm
+                            font-bold
+                            text-cyan-800
+                            dark:bg-cyan-400/10
+                            dark:text-cyan-300
+                          "
+                        >
+                          {product.name
+                            .trim()
+                            .charAt(0)
+                            .toUpperCase()}
+                        </div>
 
-                <td>{product.sku}</td>
+                        <div>
+                          <p
+                            className="
+                              font-semibold
+                              text-slate-900
+                              dark:text-slate-100
+                            "
+                          >
+                            {product.name}
+                          </p>
 
-                <td>
-                  {categoryMap.get(product.category_id) ??
-                    "Sin categoría"}
-                </td>
+                          <p
+                            className="
+                              mt-0.5
+                              text-xs
+                              text-slate-400
+                              dark:text-slate-500
+                            "
+                          >
+                            ID #{product.id}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
 
-                <td>
-                  <strong>{product.stock}</strong>{" "}
-                  unidades
-                </td>
+                    <td
+                      className="
+                        px-4
+                        py-4
+                        text-sm
+                        font-medium
+                        text-slate-600
+                        dark:text-slate-300
+                      "
+                    >
+                      {product.sku}
+                    </td>
 
-                <td>
-                  S/{" "}
-                  {Number(product.price).toLocaleString(
-                    "es-PE",
-                    {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    },
-                  )}
-                </td>
+                    <td
+                      className="
+                        px-4
+                        py-4
+                        text-sm
+                        text-slate-600
+                        dark:text-slate-300
+                      "
+                    >
+                      {categoryMap.get(
+                        product.category_id,
+                      ) ??
+                        "Sin categoría"}
+                    </td>
 
-                <td>
-                  <StatusBadge
-                    status={stockStatus}
-                    label={stockLabel}
-                  />
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+                    <td
+                      className="
+                        px-4
+                        py-4
+                      "
+                    >
+                      <span
+                        className="
+                          text-sm
+                          font-bold
+                          text-slate-900
+                          dark:text-slate-100
+                        "
+                      >
+                        {product.stock}
+                      </span>
+
+                      <span
+                        className="
+                          ml-1
+                          text-xs
+                          text-slate-400
+                          dark:text-slate-500
+                        "
+                      >
+                        unidades
+                      </span>
+                    </td>
+
+                    <td
+                      className="
+                        px-4
+                        py-4
+                        text-sm
+                        font-semibold
+                        text-slate-900
+                        dark:text-slate-100
+                      "
+                    >
+                      S/{" "}
+                      {Number(
+                        product.price,
+                      ).toLocaleString(
+                        "es-PE",
+                        {
+                          minimumFractionDigits:
+                            2,
+                          maximumFractionDigits:
+                            2,
+                        },
+                      )}
+                    </td>
+
+                    <td
+                      className="
+                        px-4
+                        py-4
+                      "
+                    >
+                      <StatusBadge
+                        status={stockStatus}
+                        label={stockLabel}
+                      />
+                    </td>
+                  </tr>
+                );
+              },
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
