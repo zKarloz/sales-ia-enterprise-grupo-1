@@ -1,4 +1,4 @@
-# SalesIA Enterprise
+# SalesIA Enterprise - Semestre IV - Grupo 1
 
 Aplicación web empresarial para la gestión de ventas, clientes, productos, inventario y análisis estadístico.
 

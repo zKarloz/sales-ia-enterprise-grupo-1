@@ -3,6 +3,7 @@ import {
 } from "react";
 
 import {
+  useLocation,
   useNavigate,
 } from "react-router-dom";
 
@@ -10,9 +11,8 @@ import {
   useAuth,
 } from "../context/AuthContext";
 
-import Button from "./Button";
-
 import {
+  getInitialTheme,
   saveTheme,
   type Theme,
 } from "../utils/theme";
@@ -23,6 +23,20 @@ interface TopbarProps {
 }
 
 
+const pageTitles: Record<
+  string,
+  string
+> = {
+  "/": "Dashboard",
+  "/clientes": "Clientes",
+  "/productos": "Productos",
+  "/ventas": "Ventas",
+  "/inventario": "Inventario",
+  "/analytics": "Analytics",
+  "/reportes": "Reportes",
+};
+
+
 export default function Topbar({
   onMenuClick,
 }: TopbarProps) {
@@ -31,18 +45,43 @@ export default function Topbar({
     logout,
   } = useAuth();
 
-  const navigate = useNavigate();
+  const navigate =
+    useNavigate();
+
+  const location =
+    useLocation();
 
   const [
     theme,
     setTheme,
-  ] = useState<Theme>(() =>
-    document.documentElement.classList.contains(
-      "dark",
-    )
-      ? "dark"
-      : "light",
+  ] = useState<Theme>(
+    () => getInitialTheme(),
   );
+
+
+  const pageTitle =
+    pageTitles[
+    location.pathname
+    ] ?? "SalesIA";
+
+
+  const initial =
+    user?.full_name
+      ?.trim()
+      .charAt(0)
+      .toUpperCase() || "U";
+
+
+  function handleThemeToggle() {
+    const nextTheme:
+      Theme =
+      theme === "dark"
+        ? "light"
+        : "dark";
+
+    setTheme(nextTheme);
+    saveTheme(nextTheme);
+  }
 
 
   function handleLogout() {
@@ -57,269 +96,235 @@ export default function Topbar({
   }
 
 
-  function handleThemeToggle() {
-    const nextTheme: Theme =
-      theme === "dark"
-        ? "light"
-        : "dark";
-
-    setTheme(nextTheme);
-    saveTheme(nextTheme);
-  }
-
-
-  const initial =
-    user?.full_name
-      .trim()
-      .charAt(0)
-      .toUpperCase() || "U";
-
-
   return (
     <header
       className="
         sticky
         top-0
         z-30
+        flex
+        h-14
+        items-center
+        justify-between
+        gap-3
         border-b
-        border-slate-200/80
-        bg-white/90
-        backdrop-blur-xl
-        transition-colors
+        border-slate-200
+        bg-white/95
+        px-3
+        backdrop-blur
+        sm:h-16
+        sm:px-5
+        lg:px-6
         dark:border-slate-800
-        dark:bg-slate-950/90
+        dark:bg-slate-950/95
       "
     >
       <div
         className="
           flex
-          min-h-16
+          min-w-0
           items-center
-          justify-between
-          gap-3
-          px-4
-          sm:px-6
-          lg:px-8
+          gap-2.5
         "
       >
-        <div
+        <button
+          type="button"
+          onClick={
+            onMenuClick
+          }
+          aria-label="Abrir menú"
           className="
-            flex
-            min-w-0
-            items-center
-            gap-3
+            grid
+            h-9
+            w-9
+            shrink-0
+            place-items-center
+            rounded-lg
+            border
+            border-slate-200
+            text-slate-600
+            transition
+            hover:bg-slate-100
+            lg:hidden
+            dark:border-slate-700
+            dark:text-slate-300
+            dark:hover:bg-slate-800
           "
         >
-          <button
-            type="button"
-            aria-label="Abrir menú"
-            onClick={onMenuClick}
-            className="
-              grid
-              h-10
-              w-10
-              shrink-0
-              place-items-center
-              rounded-xl
-              border
-              border-slate-200
-              bg-white
-              text-slate-600
-              transition
-              hover:bg-slate-50
-              focus-visible:outline-none
-              focus-visible:ring-2
-              focus-visible:ring-cyan-500
-              lg:hidden
-              dark:border-slate-700
-              dark:bg-slate-900
-              dark:text-slate-300
-              dark:hover:bg-slate-800
-            "
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            aria-hidden="true"
+            className="h-4 w-4"
           >
+            <path d="M4 6h16" />
+            <path d="M4 12h16" />
+            <path d="M4 18h16" />
+          </svg>
+        </button>
+
+        <h1
+          className="
+            truncate
+            text-base
+            font-bold
+            text-slate-950
+            sm:text-lg
+            dark:text-white
+          "
+        >
+          {pageTitle}
+        </h1>
+      </div>
+
+
+      <div
+        className="
+          flex
+          shrink-0
+          items-center
+          gap-1.5
+          sm:gap-2
+        "
+      >
+        <button
+          type="button"
+          onClick={
+            handleThemeToggle
+          }
+          aria-label={
+            theme === "dark"
+              ? "Usar modo claro"
+              : "Usar modo oscuro"
+          }
+          title={
+            theme === "dark"
+              ? "Modo claro"
+              : "Modo oscuro"
+          }
+          className="
+            grid
+            h-8
+            w-8
+            place-items-center
+            rounded-lg
+            text-slate-500
+            transition
+            hover:bg-slate-100
+            hover:text-slate-900
+            sm:h-9
+            sm:w-9
+            dark:text-slate-400
+            dark:hover:bg-slate-800
+            dark:hover:text-white
+          "
+        >
+          {theme === "dark" ? (
             <svg
               viewBox="0 0 24 24"
-              aria-hidden="true"
-              className="h-5 w-5"
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
+              aria-hidden="true"
+              className="h-4 w-4"
             >
-              <path d="M4 6h16M4 12h16M4 18h16" />
+              <circle
+                cx="12"
+                cy="12"
+                r="4"
+              />
+
+              <path d="M12 2v2" />
+              <path d="M12 20v2" />
+              <path d="m4.93 4.93 1.41 1.41" />
+              <path d="m17.66 17.66 1.41 1.41" />
+              <path d="M2 12h2" />
+              <path d="M20 12h2" />
+              <path d="m6.34 17.66-1.41 1.41" />
+              <path d="m19.07 4.93-1.41 1.41" />
             </svg>
-          </button>
-
-          <div className="min-w-0">
-            <p
-              className="
-                text-[11px]
-                font-bold
-                uppercase
-                tracking-[0.12em]
-                text-cyan-700
-                dark:text-cyan-400
-              "
+          ) : (
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              aria-hidden="true"
+              className="h-4 w-4"
             >
-              Panel empresarial
-            </p>
+              <path d="M21 12.79A9 9 0 1 1 11.21 3A7 7 0 0 0 21 12.79Z" />
+            </svg>
+          )}
+        </button>
 
-            <h2
-              className="
-                truncate
-                text-base
-                font-bold
-                text-slate-900
-                sm:text-lg
-                dark:text-slate-100
-              "
-            >
-              SalesIA Enterprise
-            </h2>
-          </div>
-        </div>
 
         <div
+          title={
+            user?.full_name ??
+            "Usuario"
+          }
           className="
-            flex
-            items-center
-            gap-2
-            sm:gap-3
+            grid
+            h-8
+            w-8
+            place-items-center
+            rounded-full
+            bg-cyan-100
+            text-xs
+            font-bold
+            text-cyan-800
+            sm:h-9
+            sm:w-9
+            sm:text-sm
+            dark:bg-cyan-400/10
+            dark:text-cyan-300
           "
         >
-          <button
-            type="button"
-            onClick={handleThemeToggle}
-            aria-label={
-              theme === "dark"
-                ? "Activar tema claro"
-                : "Activar tema oscuro"
-            }
-            title={
-              theme === "dark"
-                ? "Tema claro"
-                : "Tema oscuro"
-            }
-            className="
-              grid
-              h-10
-              w-10
-              place-items-center
-              rounded-xl
-              border
-              border-slate-200
-              bg-white
-              text-slate-600
-              transition
-              hover:bg-slate-50
-              hover:text-slate-900
-              focus-visible:outline-none
-              focus-visible:ring-2
-              focus-visible:ring-cyan-500
-              dark:border-slate-700
-              dark:bg-slate-900
-              dark:text-slate-300
-              dark:hover:bg-slate-800
-              dark:hover:text-white
-            "
-          >
-            {theme === "dark" ? (
-              <svg
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-                className="h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <circle
-                  cx="12"
-                  cy="12"
-                  r="4"
-                />
-                <path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41" />
-              </svg>
-            ) : (
-              <svg
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-                className="h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z" />
-              </svg>
-            )}
-          </button>
-
-          <div
-            className="
-              hidden
-              items-center
-              gap-3
-              border-l
-              border-slate-200
-              pl-3
-              sm:flex
-              dark:border-slate-800
-            "
-          >
-            <div
-              className="
-                grid
-                h-9
-                w-9
-                shrink-0
-                place-items-center
-                rounded-full
-                bg-cyan-100
-                text-sm
-                font-bold
-                text-cyan-800
-                dark:bg-cyan-400/15
-                dark:text-cyan-300
-              "
-            >
-              {initial}
-            </div>
-
-            <div className="hidden min-w-0 md:block">
-              <p
-                className="
-                  max-w-40
-                  truncate
-                  text-sm
-                  font-semibold
-                  text-slate-800
-                  dark:text-slate-200
-                "
-              >
-                {user?.full_name ??
-                  "Usuario"}
-              </p>
-
-              <p
-                className="
-                  mt-0.5
-                  text-xs
-                  text-slate-500
-                  dark:text-slate-400
-                "
-              >
-                {user?.role ??
-                  "Sin rol"}
-              </p>
-            </div>
-          </div>
-
-          <Button
-            variant="secondary"
-            onClick={handleLogout}
-            className="hidden sm:inline-flex"
-          >
-            Cerrar sesión
-          </Button>
+          {initial}
         </div>
+
+
+        <button
+          type="button"
+          onClick={
+            handleLogout
+          }
+          aria-label="Cerrar sesión"
+          title="Cerrar sesión"
+          className="
+            grid
+            h-8
+            w-8
+            place-items-center
+            rounded-lg
+            text-slate-500
+            transition
+            hover:bg-red-50
+            hover:text-red-600
+            sm:h-9
+            sm:w-9
+            dark:text-slate-400
+            dark:hover:bg-red-950/30
+            dark:hover:text-red-400
+          "
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+            className="h-4 w-4"
+          >
+            <path d="M10 17l5-5-5-5" />
+            <path d="M15 12H3" />
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+          </svg>
+        </button>
       </div>
     </header>
   );
