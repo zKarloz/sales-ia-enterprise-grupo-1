@@ -1,5 +1,3 @@
-import "./App.css";
-
 import {
   BrowserRouter,
   Navigate,
@@ -30,28 +28,7 @@ import DashboardPage from "./modules/dashboard/DashboardPage";
 import InventoryPage from "./modules/inventory/InventoryPage";
 import ProductsPage from "./modules/products/ProductsPage";
 import SalesPage from "./modules/sales/SalesPage";
-
-
-function PlaceholderPage({
-  title,
-}: {
-  title: string;
-}) {
-  return (
-    <section className="page-placeholder">
-      <span className="page-placeholder__label">
-        Módulo
-      </span>
-
-      <h1>{title}</h1>
-
-      <p>
-        Este módulo será implementado en las
-        siguientes fases del proyecto.
-      </p>
-    </section>
-  );
-}
+import ReportsPage from "./modules/reports/ReportsPage";
 
 
 function App() {
@@ -159,9 +136,7 @@ function App() {
               >
                 <Route
                   path="/reportes"
-                  element={
-                    <PlaceholderPage title="Reportes" />
-                  }
+                  element={<ReportsPage />}
                 />
               </Route>
             </Route>

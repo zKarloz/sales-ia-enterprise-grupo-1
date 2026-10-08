@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, String, Text, text
+from sqlalchemy import Boolean, DateTime, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -30,6 +30,12 @@ class Customer(Base):
     address: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,
+    )
+
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        server_default=text("true"),
     )
 
     created_at: Mapped[datetime | None] = mapped_column(
