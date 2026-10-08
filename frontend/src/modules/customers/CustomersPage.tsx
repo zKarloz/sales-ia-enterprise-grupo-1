@@ -16,7 +16,7 @@ import {
 
 import {
   createCustomer,
-  deleteCustomer,
+  setCustomerActive,
 } from "../../services/customerService";
 
 import type {
@@ -56,28 +56,35 @@ export default function CustomersPage() {
     error,
     refetch,
   } = useApi<Customer[]>(
-    "/api/customers",
+    "/api/customers?include_inactive=true",
   );
 
 
-  async function handleDeleteCustomer(
+  async function handleToggleCustomer(
     id: number,
+    isActive: boolean,
   ) {
     try {
       setActionError(null);
       setSuccessMessage(null);
 
-      await deleteCustomer(id);
+      await setCustomerActive(
+        id,
+        !isActive,
+      );
+
       await refetch();
 
       setSuccessMessage(
-        "El cliente fue eliminado correctamente.",
+        isActive
+          ? "El cliente fue desactivado correctamente."
+          : "El cliente fue activado correctamente.",
       );
     } catch (error) {
       setActionError(
         error instanceof Error
           ? error.message
-          : "No se pudo eliminar el cliente.",
+          : "No se pudo actualizar el estado del cliente.",
       );
     }
   }
@@ -191,8 +198,8 @@ export default function CustomersPage() {
           customerList.length > 0 && (
             <CustomerTable
               customers={customerList}
-              onDelete={
-                handleDeleteCustomer
+              onToggleActive={
+                handleToggleCustomer
               }
             />
           )}

@@ -6,10 +6,10 @@ from app.api.dependencies.roles import require_roles
 from app.core.database import get_db
 from app.core.roles import ROLE_SELLER
 
-from app.schemas.customer import CustomerCreate, CustomerResponse, CustomerUpdate
+from app.schemas.customer import CustomerCreate, CustomerResponse, CustomerStatusUpdate,CustomerUpdate
 from app.schemas.auth import CurrentUserResponse
 
-from app.services.customer_service import create_customer, delete_customer, get_customer, list_customers, update_customer
+from app.services.customer_service import create_customer, get_customer, list_customers, set_customer_active, update_customer
 
 
 router = APIRouter(
@@ -18,16 +18,23 @@ router = APIRouter(
 )
 
 
-@router.get("", response_model=list[CustomerResponse])
+@router.get(
+    "",
+    response_model=list[CustomerResponse],
+)
 def get_customers(
+    include_inactive: bool = False,
     db: Session = Depends(get_db),
     current_user: CurrentUserResponse = Depends(
-    require_roles(ROLE_SELLER),
+        require_roles(ROLE_SELLER),
     ),
 ):
-    """Lista todos los clientes."""
+    """Lista clientes activos o todos, según el filtro."""
 
-    return list_customers(db)
+    return list_customers(
+        db,
+        include_inactive=include_inactive,
+    )
 
 
 @router.get("/{customer_id}", response_model=CustomerResponse)
@@ -104,20 +111,24 @@ def put_customer(
         ) from exc
 
 
-@router.delete(
-    "/{customer_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
+@router.patch(
+    "/{customer_id}/status",
+    response_model=CustomerResponse,
 )
-def remove_customer(
+def patch_customer_status(
     customer_id: int,
+    data: CustomerStatusUpdate,
     db: Session = Depends(get_db),
     current_user: CurrentUserResponse = Depends(
         require_roles(ROLE_SELLER),
     ),
 ):
-    """Elimina un cliente."""
+    """Activa o desactiva lógicamente un cliente."""
 
-    customer = get_customer(db, customer_id)
+    customer = get_customer(
+        db,
+        customer_id,
+    )
 
     if customer is None:
         raise HTTPException(
@@ -125,11 +136,8 @@ def remove_customer(
             detail="Cliente no encontrado.",
         )
 
-    try:
-        delete_customer(db, customer)
-
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(exc),
-        ) from exc
+    return set_customer_active(
+        db,
+        customer,
+        data.is_active,
+    )

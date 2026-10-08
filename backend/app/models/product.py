@@ -2,6 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -58,6 +59,12 @@ class Product(Base):
     stock: Mapped[int] = mapped_column(
         nullable=False,
         server_default=text("0"),
+    )
+
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        server_default=text("true"),
     )
 
     created_at: Mapped[datetime | None] = mapped_column(

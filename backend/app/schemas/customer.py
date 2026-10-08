@@ -21,6 +21,12 @@ class CustomerUpdate(BaseModel):
     address: str | None = None
 
 
+class CustomerStatusUpdate(BaseModel):
+    """Estado lógico del cliente."""
+
+    is_active: bool
+
+
 class CustomerResponse(BaseModel):
     """Representación del cliente devuelta por la API."""
 
@@ -29,6 +35,7 @@ class CustomerResponse(BaseModel):
     email: str | None
     phone: str | None
     address: str | None
+    is_active: bool
     created_at: datetime | None
 
     model_config = ConfigDict(from_attributes=True)

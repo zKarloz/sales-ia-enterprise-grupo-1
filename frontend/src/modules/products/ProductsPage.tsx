@@ -17,7 +17,7 @@ import {
 
 import {
   createProduct,
-  deleteProduct,
+  setProductActive,
 } from "../../services/productService";
 
 import type {
@@ -95,7 +95,7 @@ export default function ProductsPage() {
     error,
     refetch,
   } = useApi<Product[]>(
-    "/api/products",
+    "/api/products?include_inactive=true",
   );
 
 
@@ -208,12 +208,18 @@ export default function ProductsPage() {
   }
 
 
-  async function handleDelete(
+  async function handleToggleProduct(
     id: number,
+    isActive: boolean,
   ) {
+    const action =
+      isActive
+        ? "desactivar"
+        : "activar";
+
     const confirmed =
       window.confirm(
-        "¿Deseas eliminar este producto?",
+        `¿Deseas ${action} este producto?`,
       );
 
     if (!confirmed) {
@@ -224,17 +230,23 @@ export default function ProductsPage() {
       setActionError(null);
       setSuccessMessage(null);
 
-      await deleteProduct(id);
+      await setProductActive(
+        id,
+        !isActive,
+      );
+
       await refetch();
 
       setSuccessMessage(
-        "El producto fue eliminado correctamente.",
+        isActive
+          ? "El producto fue desactivado correctamente."
+          : "El producto fue activado correctamente.",
       );
     } catch (error) {
       setActionError(
         error instanceof Error
           ? error.message
-          : "No se pudo eliminar el producto.",
+          : "No se pudo actualizar el estado del producto.",
       );
     }
   }
@@ -460,8 +472,8 @@ export default function ProductsPage() {
               categories={
                 categoryList
               }
-              onDelete={
-                handleDelete
+              onToggleActive={
+                handleToggleProduct
               }
             />
           )}

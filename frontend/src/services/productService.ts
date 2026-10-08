@@ -40,10 +40,17 @@ export async function updateProduct(
 }
 
 
-export async function deleteProduct(
+export async function setProductActive(
   id: number,
-): Promise<void> {
-  return apiRequest<void>(`/api/products/${id}`, {
-    method: "DELETE",
-  });
+  isActive: boolean,
+): Promise<Product> {
+  return apiRequest<Product>(
+    `/api/products/${id}/status`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({
+        is_active: isActive,
+      }),
+    },
+  );
 }

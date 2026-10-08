@@ -7,13 +7,23 @@ from app.models.product import Product
 from app.schemas.product import ProductCreate, ProductUpdate
 
 
-def list_products(db: Session) -> list[Product]:
-    """Devuelve todos los productos ordenados por ID."""
+def list_products(
+    db: Session,
+    include_inactive: bool = False,
+) -> list[Product]:
+    """Devuelve productos ordenados por ID."""
+
+    query = select(Product)
+
+    if not include_inactive:
+        query = query.where(
+            Product.is_active.is_(True)
+        )
+
+    query = query.order_by(Product.id)
 
     return list(
-        db.scalars(
-            select(Product).order_by(Product.id)
-        ).all()
+        db.scalars(query).all()
     )
 
 
@@ -38,7 +48,10 @@ def create_product(
 
     _validate_category(db, data.category_id)
 
-    product = Product(**data.model_dump())
+    product = Product(
+        **data.model_dump(),
+        is_active=True,
+    )
 
     try:
         db.add(product)
@@ -80,18 +93,16 @@ def update_product(
         ) from exc
 
 
-def delete_product(
+def set_product_active(
     db: Session,
     product: Product,
-) -> None:
-    """Elimina un producto sin referencias protegidas."""
+    is_active: bool,
+) -> Product:
+    """Activa o desactiva un producto sin eliminarlo."""
 
-    try:
-        db.delete(product)
-        db.commit()
+    product.is_active = is_active
 
-    except IntegrityError as exc:
-        db.rollback()
-        raise ValueError(
-            "No se puede eliminar el producto porque tiene registros relacionados."
-        ) from exc
+    db.commit()
+    db.refresh(product)
+
+    return product
