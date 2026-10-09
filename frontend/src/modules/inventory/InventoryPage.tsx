@@ -1,28 +1,27 @@
+import { useMemo, useState } from "react";
+
+import Button from "../../components/Button";
 import Card from "../../components/Card";
 import EmptyState from "../../components/EmptyState";
 import ErrorState from "../../components/ErrorState";
 import LoadingState from "../../components/LoadingState";
 import PageHeader from "../../components/PageHeader";
-import StatusBadge from "../../components/StatusBadge";
+import SuccessState from "../../components/SuccessState";
 
-import {
-  useApi,
-} from "../../hooks/useApi";
+import { useApi } from "../../hooks/useApi";
+import { createInventoryMovement } from "../../services/inventoryService";
 
-import type {
-  Category,
-} from "../../types/category";
-
+import type { Category } from "../../types/category";
 import type {
   InventoryMovement,
+  InventoryMovementCreate,
 } from "../../types/inventory";
+import type { Product } from "../../types/product";
+import type { Supplier } from "../../types/supplier";
 
-import type {
-  Product,
-} from "../../types/product";
-
+import InventoryMovementForm from "./InventoryMovementForm";
 import InventoryTable from "./InventoryTable";
-
+import KardexTable from "./KardexTable";
 
 interface MetricCardProps {
   label: string;
@@ -31,6 +30,12 @@ interface MetricCardProps {
   tone?: "default" | "warning" | "danger";
 }
 
+const controlClasses = `
+  h-11 rounded-xl border border-slate-300 bg-white px-3.5 text-sm
+  text-slate-900 outline-none transition focus:border-cyan-500
+  focus:ring-4 focus:ring-cyan-500/10 dark:border-slate-700
+  dark:bg-slate-950 dark:text-slate-100
+`;
 
 function MetricCard({
   label,
@@ -39,433 +44,335 @@ function MetricCard({
   tone = "default",
 }: MetricCardProps) {
   const toneClasses = {
-    default: `
-      bg-cyan-50
-      text-cyan-700
-      dark:bg-cyan-400/10
-      dark:text-cyan-300
-    `,
-
-    warning: `
-      bg-amber-50
-      text-amber-700
-      dark:bg-amber-400/10
-      dark:text-amber-300
-    `,
-
-    danger: `
-      bg-red-50
-      text-red-700
-      dark:bg-red-400/10
-      dark:text-red-300
-    `,
+    default: "bg-cyan-50 text-cyan-700 dark:bg-cyan-400/10 dark:text-cyan-300",
+    warning: "bg-amber-50 text-amber-700 dark:bg-amber-400/10 dark:text-amber-300",
+    danger: "bg-red-50 text-red-700 dark:bg-red-400/10 dark:text-red-300",
   };
 
-
   return (
-    <div
-      className="
-        rounded-2xl
-        border
-        border-slate-200
-        bg-white
-        p-5
-        shadow-sm
-        shadow-slate-950/[0.03]
-        dark:border-slate-800
-        dark:bg-slate-900
-      "
-    >
-      <div
-        className={`
-          mb-4
-          inline-flex
-          rounded-lg
-          px-2.5
-          py-1
-          text-xs
-          font-bold
-          ${toneClasses[tone]}
-        `}
-      >
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-950/[0.03] dark:border-slate-800 dark:bg-slate-900">
+      <div className={`mb-4 inline-flex rounded-lg px-2.5 py-1 text-xs font-bold ${toneClasses[tone]}`}>
         {label}
       </div>
-
-      <p
-        className="
-          text-3xl
-          font-bold
-          tracking-tight
-          text-slate-950
-          dark:text-white
-        "
-      >
+      <p className="text-3xl font-bold tracking-tight text-slate-950 dark:text-white">
         {value.toLocaleString("es-PE")}
       </p>
-
-      <p
-        className="
-          mt-2
-          text-sm
-          text-slate-500
-          dark:text-slate-400
-        "
-      >
+      <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
         {helper}
       </p>
     </div>
   );
 }
 
-
 export default function InventoryPage() {
+  const [showForm, setShowForm] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [movementProduct, setMovementProduct] = useState("all");
+  const [movementSupplier, setMovementSupplier] = useState("all");
+  const [movementType, setMovementType] = useState("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
   const {
     data: products,
     loading: productsLoading,
     error: productsError,
-  } = useApi<Product[]>(
-    "/api/products",
-  );
+    refetch: refetchProducts,
+  } = useApi<Product[]>("/api/products?include_inactive=true");
 
   const {
     data: categories,
     loading: categoriesLoading,
     error: categoriesError,
-  } = useApi<Category[]>(
-    "/api/categories",
-  );
+  } = useApi<Category[]>("/api/categories");
+
+  const {
+    data: suppliers,
+    loading: suppliersLoading,
+    error: suppliersError,
+  } = useApi<Supplier[]>("/api/suppliers?include_inactive=true");
 
   const {
     data: movements,
     loading: movementsLoading,
     error: movementsError,
-  } = useApi<InventoryMovement[]>(
-    "/api/inventory",
+    refetch: refetchMovements,
+  } = useApi<InventoryMovement[]>("/api/inventory");
+
+  const productList = products ?? [];
+  const categoryList = categories ?? [];
+  const supplierList = suppliers ?? [];
+  const movementList = movements ?? [];
+
+  const activeProducts = productList.filter((product) => product.is_active);
+  const activeSuppliers = supplierList.filter((supplier) => supplier.is_active);
+
+  const totalProducts = activeProducts.length;
+  const totalUnits = activeProducts.reduce(
+    (total, product) => total + product.stock,
+    0,
   );
-
-
-  const productList =
-    products ?? [];
-
-  const categoryList =
-    categories ?? [];
-
-  const movementList =
-    movements ?? [];
-
-
-  const totalProducts =
-    productList.length;
-
-  const totalUnits =
-    productList.reduce(
-      (total, product) =>
-        total + product.stock,
-      0,
-    );
-
-  const lowStock =
-    productList.filter(
-      (product) =>
-        product.stock > 0 &&
-        product.stock <= 10,
-    ).length;
-
-  const outOfStock =
-    productList.filter(
-      (product) =>
-        product.stock === 0,
-    ).length;
-
+  const lowStock = activeProducts.filter(
+    (product) => product.stock > 0 && product.stock <= 10,
+  ).length;
+  const outOfStock = activeProducts.filter(
+    (product) => product.stock === 0,
+  ).length;
 
   const loading =
     productsLoading ||
     categoriesLoading ||
+    suppliersLoading ||
     movementsLoading;
 
   const error =
     productsError ||
     categoriesError ||
+    suppliersError ||
     movementsError;
 
+  const filteredMovements = useMemo(() => {
+    return movementList.filter((movement) => {
+      const matchesProduct =
+        movementProduct === "all" ||
+        movement.product_id === Number(movementProduct);
 
-  const productMap =
-    new Map(
-      productList.map(
-        (product) => [
-          product.id,
-          product.name,
-        ],
-      ),
-    );
+      const matchesSupplier =
+        movementSupplier === "all" ||
+        (movementSupplier === "none"
+          ? movement.supplier_id === null
+          : movement.supplier_id === Number(movementSupplier));
 
+      const matchesType =
+        movementType === "all" ||
+        movement.movement_type === movementType;
+
+      if (!matchesProduct || !matchesSupplier || !matchesType) {
+        return false;
+      }
+
+      if (!movement.created_at) {
+        return !dateFrom && !dateTo;
+      }
+
+      const movementDate = new Date(movement.created_at);
+
+      if (dateFrom) {
+        const from = new Date(`${dateFrom}T00:00:00`);
+        if (movementDate < from) {
+          return false;
+        }
+      }
+
+      if (dateTo) {
+        const to = new Date(`${dateTo}T23:59:59.999`);
+        if (movementDate > to) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [
+    movementList,
+    movementProduct,
+    movementSupplier,
+    movementType,
+    dateFrom,
+    dateTo,
+  ]);
+
+  async function handleCreateMovement(
+    movement: InventoryMovementCreate,
+  ) {
+    try {
+      setSaving(true);
+      setActionError(null);
+      setSuccessMessage(null);
+
+      await createInventoryMovement(movement);
+
+      await Promise.all([
+        refetchProducts(),
+        refetchMovements(),
+      ]);
+
+      setShowForm(false);
+      setSuccessMessage(
+        movement.movement_type === "IN"
+          ? "La entrada fue registrada correctamente en el Kardex."
+          : "La salida fue registrada correctamente en el Kardex.",
+      );
+    } catch (error) {
+      setActionError(
+        error instanceof Error
+          ? error.message
+          : "No se pudo registrar el movimiento.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
-    <section
-      className="
-        w-full
-        space-y-6
-      "
-    >
+    <section className="w-full space-y-6">
       <PageHeader
         title="Inventario"
-        description="Consulta el estado, disponibilidad y movimientos del inventario."
+        description="Controla existencias y consulta la trazabilidad de movimientos mediante Kardex."
+        action={
+          <Button
+            onClick={() => {
+              setActionError(null);
+              setSuccessMessage(null);
+              setShowForm(true);
+            }}
+          >
+            + Registrar movimiento
+          </Button>
+        }
       />
 
-      <div
-        className="
-          grid
-          grid-cols-1
-          gap-4
-          sm:grid-cols-2
-          xl:grid-cols-4
-        "
-      >
-        <MetricCard
-          label="Productos"
-          value={totalProducts}
-          helper="Productos registrados"
-        />
+      {actionError && <ErrorState message={actionError} />}
+      {successMessage && <SuccessState message={successMessage} />}
 
-        <MetricCard
-          label="Unidades"
-          value={totalUnits}
-          helper="Unidades disponibles"
+      {showForm && (
+        <InventoryMovementForm
+          products={activeProducts}
+          suppliers={activeSuppliers}
+          onSubmit={handleCreateMovement}
+          onCancel={() => {
+            setActionError(null);
+            setShowForm(false);
+          }}
+          submitting={saving}
         />
+      )}
 
-        <MetricCard
-          label="Stock bajo"
-          value={lowStock}
-          helper="Productos con 10 unidades o menos"
-          tone="warning"
-        />
-
-        <MetricCard
-          label="Sin stock"
-          value={outOfStock}
-          helper="Productos agotados"
-          tone="danger"
-        />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <MetricCard label="Productos" value={totalProducts} helper="Productos activos" />
+        <MetricCard label="Unidades" value={totalUnits} helper="Unidades disponibles" />
+        <MetricCard label="Stock bajo" value={lowStock} helper="Productos con 10 unidades o menos" tone="warning" />
+        <MetricCard label="Sin stock" value={outOfStock} helper="Productos agotados" tone="danger" />
       </div>
 
-      {loading && (
-        <LoadingState
-          message="Cargando inventario..."
+      {loading && <LoadingState message="Cargando inventario..." />}
+      {!loading && error && <ErrorState message={error} />}
+
+      {!loading && !error && activeProducts.length === 0 && (
+        <EmptyState
+          title="No hay productos activos"
+          message="No existen productos activos disponibles para inventario."
         />
       )}
 
-      {!loading && error && (
-        <ErrorState
-          message={error}
-        />
-      )}
-
-      {!loading &&
-        !error &&
-        productList.length === 0 && (
-          <EmptyState
-            title="No hay productos"
-            message="Todavía no existen productos en inventario."
+      {!loading && !error && activeProducts.length > 0 && (
+        <Card
+          title="Estado del inventario"
+          subtitle="Stock actual de los productos activos."
+        >
+          <InventoryTable
+            products={activeProducts}
+            categories={categoryList}
           />
-        )}
+        </Card>
+      )}
 
-      {!loading &&
-        !error &&
-        productList.length > 0 && (
-          <Card
-            title="Estado del inventario"
-            subtitle="Stock actual obtenido desde la base de datos."
-          >
-            <InventoryTable
-              products={productList}
-              categories={categoryList}
+      {!loading && !error && (
+        <Card
+          title="Kardex de inventario"
+          subtitle="Trazabilidad de entradas, salidas y ajustes registrados."
+        >
+          <div className="mb-6 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
+            <select
+              value={movementProduct}
+              onChange={(event) => setMovementProduct(event.target.value)}
+              className={controlClasses}
+            >
+              <option value="all">Todos los productos</option>
+              {productList.map((product) => (
+                <option key={product.id} value={product.id}>
+                  {product.sku} — {product.name}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={movementSupplier}
+              onChange={(event) => setMovementSupplier(event.target.value)}
+              className={controlClasses}
+            >
+              <option value="all">Todos los proveedores</option>
+              <option value="none">Sin proveedor</option>
+              {supplierList.map((supplier) => (
+                <option key={supplier.id} value={supplier.id}>
+                  {supplier.ruc} — {supplier.business_name}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={movementType}
+              onChange={(event) => setMovementType(event.target.value)}
+              className={controlClasses}
+            >
+              <option value="all">Todos los movimientos</option>
+              <option value="IN">Entradas</option>
+              <option value="OUT">Salidas</option>
+              <option value="ADJUSTMENT">Ajustes</option>
+            </select>
+
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(event) => setDateFrom(event.target.value)}
+              aria-label="Fecha desde"
+              className={controlClasses}
             />
-          </Card>
-        )}
 
-      {!loading &&
-        !error && (
-          <Card
-            title="Movimientos recientes"
-            subtitle="Entradas, salidas y ajustes registrados."
-          >
-            {movementList.length === 0 ? (
-              <EmptyState
-                title="Sin movimientos"
-                message="Todavía no existen movimientos registrados."
-              />
-            ) : (
-              <div
-                className="
-                  overflow-hidden
-                  rounded-xl
-                  border
-                  border-slate-200
-                  dark:border-slate-800
-                "
-              >
-                <div className="overflow-x-auto">
-                  <table
-                    className="
-                      w-full
-                      min-w-[850px]
-                      border-collapse
-                      text-left
-                    "
-                  >
-                    <thead
-                      className="
-                        bg-slate-50
-                        dark:bg-slate-950/70
-                      "
-                    >
-                      <tr>
-                        {[
-                          "Producto",
-                          "Tipo",
-                          "Cantidad",
-                          "Motivo",
-                          "Fecha",
-                        ].map(
-                          (label) => (
-                            <th
-                              key={label}
-                              className="
-                                px-4
-                                py-3.5
-                                text-[11px]
-                                font-bold
-                                uppercase
-                                tracking-[0.08em]
-                                text-slate-500
-                                dark:text-slate-400
-                              "
-                            >
-                              {label}
-                            </th>
-                          ),
-                        )}
-                      </tr>
-                    </thead>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(event) => setDateTo(event.target.value)}
+              aria-label="Fecha hasta"
+              className={controlClasses}
+            />
+          </div>
 
-                    <tbody
-                      className="
-                        divide-y
-                        divide-slate-100
-                        bg-white
-                        dark:divide-slate-800
-                        dark:bg-slate-900
-                      "
-                    >
-                      {movementList.map(
-                        (movement) => {
-                          const movementStatus =
-                            movement.movement_type === "IN"
-                              ? "active"
-                              : movement.movement_type === "OUT"
-                                ? "error"
-                                : "pending";
+          <div className="mb-4 flex flex-col gap-2 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between dark:text-slate-400">
+            <span>
+              {filteredMovements.length.toLocaleString("es-PE")} movimiento(s)
+            </span>
 
-                          const movementLabel =
-                            movement.movement_type === "IN"
-                              ? "Entrada"
-                              : movement.movement_type === "OUT"
-                                ? "Salida"
-                                : "Ajuste";
+            {(movementProduct !== "all" ||
+              movementSupplier !== "all" ||
+              movementType !== "all" ||
+              dateFrom ||
+              dateTo) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMovementProduct("all");
+                    setMovementSupplier("all");
+                    setMovementType("all");
+                    setDateFrom("");
+                    setDateTo("");
+                  }}
+                  className="font-semibold text-cyan-700 hover:text-cyan-800 dark:text-cyan-400 dark:hover:text-cyan-300"
+                >
+                  Limpiar filtros
+                </button>
+              )}
+          </div>
 
-                          return (
-                            <tr
-                              key={movement.id}
-                              className="
-                                transition-colors
-                                hover:bg-slate-50/80
-                                dark:hover:bg-slate-800/40
-                              "
-                            >
-                              <td
-                                className="
-                                  px-4
-                                  py-4
-                                  text-sm
-                                  font-semibold
-                                  text-slate-900
-                                  dark:text-slate-100
-                                "
-                              >
-                                {productMap.get(
-                                  movement.product_id,
-                                ) ??
-                                  `Producto #${movement.product_id}`}
-                              </td>
-
-                              <td
-                                className="
-                                  px-4
-                                  py-4
-                                "
-                              >
-                                <StatusBadge
-                                  status={movementStatus}
-                                  label={movementLabel}
-                                />
-                              </td>
-
-                              <td
-                                className="
-                                  px-4
-                                  py-4
-                                  text-sm
-                                  font-bold
-                                  text-slate-900
-                                  dark:text-slate-100
-                                "
-                              >
-                                {movement.quantity}
-                              </td>
-
-                              <td
-                                className="
-                                  max-w-[300px]
-                                  px-4
-                                  py-4
-                                  text-sm
-                                  text-slate-600
-                                  dark:text-slate-300
-                                "
-                              >
-                                {movement.reason ??
-                                  "Sin motivo especificado"}
-                              </td>
-
-                              <td
-                                className="
-                                  whitespace-nowrap
-                                  px-4
-                                  py-4
-                                  text-sm
-                                  text-slate-500
-                                  dark:text-slate-400
-                                "
-                              >
-                                {movement.created_at
-                                  ? new Date(
-                                    movement.created_at,
-                                  ).toLocaleString(
-                                    "es-PE",
-                                  )
-                                  : "—"}
-                              </td>
-                            </tr>
-                          );
-                        },
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-          </Card>
-        )}
+          <KardexTable
+            movements={filteredMovements}
+            products={productList}
+            suppliers={supplierList}
+          />
+        </Card>
+      )}
     </section>
   );
 }

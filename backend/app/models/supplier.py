@@ -6,31 +6,32 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.core.database import Base
 
 
-class Customer(Base):
-    __tablename__ = "customers"
+class Supplier(Base):
+    """Proveedor comercial asociado a entradas de inventario."""
+
+    __tablename__ = "suppliers"
 
     id: Mapped[int] = mapped_column(primary_key=True)
 
-    document_type: Mapped[str | None] = mapped_column(
-        String(20),
-        nullable=True,
-    )
-
-    document_number: Mapped[str | None] = mapped_column(
-        String(20),
-        unique=True,
-        nullable=True,
-        index=True,
-    )
-
-    full_name: Mapped[str] = mapped_column(
+    business_name: Mapped[str] = mapped_column(
         String(150),
         nullable=False,
     )
 
+    ruc: Mapped[str] = mapped_column(
+        String(11),
+        unique=True,
+        nullable=False,
+        index=True,
+    )
+
+    contact_name: Mapped[str | None] = mapped_column(
+        String(150),
+        nullable=True,
+    )
+
     email: Mapped[str | None] = mapped_column(
         String(150),
-        unique=True,
         nullable=True,
     )
 

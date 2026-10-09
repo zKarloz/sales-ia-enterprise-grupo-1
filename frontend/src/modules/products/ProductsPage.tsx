@@ -18,6 +18,7 @@ import {
 import {
   createProduct,
   setProductActive,
+  updateProduct,
 } from "../../services/productService";
 
 import type {
@@ -58,35 +59,21 @@ const controlClasses = `
 
 
 export default function ProductsPage() {
-  const [
-    search,
-    setSearch,
-  ] = useState("");
+  const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] =
+    useState("all");
+  const [statusFilter, setStatusFilter] =
+    useState("all");
 
-  const [
-    categoryFilter,
-    setCategoryFilter,
-  ] = useState("all");
+  const [showForm, setShowForm] = useState(false);
+  const [editingProduct, setEditingProduct] =
+    useState<Product | null>(null);
 
-  const [
-    showForm,
-    setShowForm,
-  ] = useState(false);
-
-  const [
-    actionError,
-    setActionError,
-  ] = useState<string | null>(null);
-
-  const [
-    successMessage,
-    setSuccessMessage,
-  ] = useState<string | null>(null);
-
-  const [
-    saving,
-    setSaving,
-  ] = useState(false);
+  const [actionError, setActionError] =
+    useState<string | null>(null);
+  const [successMessage, setSuccessMessage] =
+    useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
 
   const {
@@ -108,76 +95,93 @@ export default function ProductsPage() {
   );
 
 
-  const productList =
-    products ?? [];
-
-  const categoryList =
-    categories ?? [];
+  const productList = products ?? [];
+  const categoryList = categories ?? [];
 
 
-  const categoryMap =
-    useMemo(() => {
-      return new Map(
-        categoryList.map(
-          (category) => [
-            category.id,
-            category.name,
-          ],
-        ),
-      );
-    }, [
-      categoryList,
-    ]);
+  const categoryMap = useMemo(() => {
+    return new Map(
+      categoryList.map((category) => [
+        category.id,
+        category.name,
+      ]),
+    );
+  }, [categoryList]);
 
 
-  const filteredProducts =
-    useMemo(() => {
-      const value =
-        search
+  const filteredProducts = useMemo(() => {
+    const value =
+      search.toLowerCase().trim();
+
+    return productList.filter((product) => {
+      const categoryName =
+        categoryMap.get(product.category_id) ?? "";
+
+      const matchesSearch =
+        !value ||
+        product.name
           .toLowerCase()
-          .trim();
+          .includes(value) ||
+        product.sku
+          .toLowerCase()
+          .includes(value) ||
+        categoryName
+          .toLowerCase()
+          .includes(value);
 
-      return productList.filter(
-        (product) => {
-          const categoryName =
-            categoryMap.get(
-              product.category_id,
-            ) ?? "";
+      const matchesCategory =
+        categoryFilter === "all" ||
+        product.category_id ===
+        Number(categoryFilter);
 
-          const matchesSearch =
-            !value ||
-            product.name
-              .toLowerCase()
-              .includes(value) ||
-            product.sku
-              .toLowerCase()
-              .includes(value) ||
-            categoryName
-              .toLowerCase()
-              .includes(value);
+      const matchesStatus =
+        statusFilter === "all" ||
+        (statusFilter === "active" &&
+          product.is_active) ||
+        (statusFilter === "inactive" &&
+          !product.is_active);
 
-          const matchesCategory =
-            categoryFilter === "all" ||
-            product.category_id ===
-            Number(
-              categoryFilter,
-            );
-
-          return (
-            matchesSearch &&
-            matchesCategory
-          );
-        },
+      return (
+        matchesSearch &&
+        matchesCategory &&
+        matchesStatus
       );
-    }, [
-      productList,
-      search,
-      categoryFilter,
-      categoryMap,
-    ]);
+    });
+  }, [
+    productList,
+    search,
+    categoryFilter,
+    statusFilter,
+    categoryMap,
+  ]);
 
 
-  async function handleCreate(
+  function openCreateForm() {
+    setEditingProduct(null);
+    setActionError(null);
+    setSuccessMessage(null);
+    setShowForm(true);
+  }
+
+
+  function openEditForm(
+    product: Product,
+  ) {
+    setEditingProduct(product);
+    setActionError(null);
+    setSuccessMessage(null);
+    setShowForm(true);
+  }
+
+
+  function closeForm() {
+    setEditingProduct(null);
+    setActionError(null);
+    setShowForm(false);
+  }
+
+
+  async function handleSaveProduct(
     product: ProductCreate,
   ) {
     try {
@@ -185,22 +189,37 @@ export default function ProductsPage() {
       setActionError(null);
       setSuccessMessage(null);
 
-      await createProduct(
-        product,
-      );
+      if (editingProduct) {
+        await updateProduct(
+          editingProduct.id,
+          {
+            category_id: product.category_id,
+            sku: product.sku,
+            name: product.name,
+            price: product.price,
+          },
+        );
+
+        setSuccessMessage(
+          "Los datos del producto fueron actualizados correctamente.",
+        );
+      } else {
+        await createProduct(product);
+
+        setSuccessMessage(
+          "El producto fue registrado correctamente.",
+        );
+      }
 
       await refetch();
 
+      setEditingProduct(null);
       setShowForm(false);
-
-      setSuccessMessage(
-        "El producto fue registrado correctamente.",
-      );
     } catch (error) {
       setActionError(
         error instanceof Error
           ? error.message
-          : "No se pudo crear el producto.",
+          : "No se pudo guardar el producto.",
       );
     } finally {
       setSaving(false);
@@ -213,14 +232,11 @@ export default function ProductsPage() {
     isActive: boolean,
   ) {
     const action =
-      isActive
-        ? "desactivar"
-        : "activar";
+      isActive ? "desactivar" : "activar";
 
-    const confirmed =
-      window.confirm(
-        `¿Deseas ${action} este producto?`,
-      );
+    const confirmed = window.confirm(
+      `¿Deseas ${action} este producto?`,
+    );
 
     if (!confirmed) {
       return;
@@ -253,75 +269,43 @@ export default function ProductsPage() {
 
 
   return (
-    <section
-      className="
-        w-full
-        space-y-6
-      "
-    >
+    <section className="w-full space-y-6">
       <PageHeader
         title="Productos"
-        description="Administra el catálogo de productos, categorías, precios y disponibilidad."
+        description="Administra el catálogo, precios, categorías y estado de los productos."
         action={
-          <Button
-            onClick={() => {
-              setActionError(null);
-              setSuccessMessage(null);
-              setShowForm(true);
-            }}
-          >
+          <Button onClick={openCreateForm}>
             + Nuevo producto
           </Button>
         }
       />
 
       {actionError && (
-        <ErrorState
-          message={actionError}
-        />
+        <ErrorState message={actionError} />
       )}
 
       {successMessage && (
-        <SuccessState
-          message={successMessage}
-        />
+        <SuccessState message={successMessage} />
       )}
 
       {showForm && (
         <>
           {categoriesLoading && (
-            <LoadingState
-              message="Cargando categorías..."
-            />
+            <LoadingState message="Cargando categorías..." />
           )}
 
           {!categoriesLoading &&
             categoriesError && (
-              <ErrorState
-                message={
-                  categoriesError
-                }
-              />
+              <ErrorState message={categoriesError} />
             )}
 
           {!categoriesLoading &&
             !categoriesError && (
               <ProductForm
-                categories={
-                  categoryList
-                }
-                onSubmit={
-                  handleCreate
-                }
-                onCancel={() => {
-                  setActionError(
-                    null,
-                  );
-
-                  setShowForm(
-                    false,
-                  );
-                }}
+                categories={categoryList}
+                initialProduct={editingProduct}
+                onSubmit={handleSaveProduct}
+                onCancel={closeForm}
                 submitting={saving}
               />
             )}
@@ -330,17 +314,9 @@ export default function ProductsPage() {
 
       <Card
         title="Productos registrados"
-        subtitle="Consulta y filtra el catálogo disponible en SalesIA Enterprise."
+        subtitle="Busca, filtra, edita y administra el estado del catálogo."
       >
-        <div
-          className="
-            mb-6
-            flex
-            flex-col
-            gap-3
-            lg:flex-row
-          "
-        >
+        <div className="mb-6 flex flex-col gap-3 xl:flex-row">
           <div className="relative flex-1">
             <svg
               viewBox="0 0 24 24"
@@ -359,12 +335,7 @@ export default function ProductsPage() {
                 text-slate-400
               "
             >
-              <circle
-                cx="11"
-                cy="11"
-                r="7"
-              />
-
+              <circle cx="11" cy="11" r="7" />
               <path d="m20 20-3.5-3.5" />
             </svg>
 
@@ -373,73 +344,66 @@ export default function ProductsPage() {
               placeholder="Buscar por nombre, SKU o categoría..."
               value={search}
               onChange={(event) =>
-                setSearch(
-                  event.target.value,
-                )
+                setSearch(event.target.value)
               }
-              className={`
-                ${controlClasses}
-                w-full
-                pl-10
-              `}
+              className={`${controlClasses} w-full pl-10`}
             />
           </div>
 
           <select
             value={categoryFilter}
             onChange={(event) =>
-              setCategoryFilter(
-                event.target.value,
-              )
+              setCategoryFilter(event.target.value)
             }
-            disabled={
-              categoriesLoading
-            }
-            className={`
-              ${controlClasses}
-              w-full
-              lg:w-64
-            `}
+            disabled={categoriesLoading}
+            className={`${controlClasses} w-full xl:w-64`}
           >
             <option value="all">
               Todas las categorías
             </option>
 
-            {categoryList.map(
-              (category) => (
-                <option
-                  key={category.id}
-                  value={category.id}
-                >
-                  {category.name}
-                </option>
-              ),
-            )}
+            {categoryList.map((category) => (
+              <option
+                key={category.id}
+                value={category.id}
+              >
+                {category.name}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={statusFilter}
+            onChange={(event) =>
+              setStatusFilter(event.target.value)
+            }
+            className={`${controlClasses} w-full xl:w-52`}
+          >
+            <option value="all">
+              Todos los estados
+            </option>
+            <option value="active">
+              Activos
+            </option>
+            <option value="inactive">
+              Inactivos
+            </option>
           </select>
         </div>
 
         {categoriesError && (
           <div className="mb-5">
-            <ErrorState
-              message={
-                categoriesError
-              }
-            />
+            <ErrorState message={categoriesError} />
           </div>
         )}
 
         {loading && (
-          <LoadingState
-            message="Cargando productos..."
-          />
+          <LoadingState message="Cargando productos..." />
         )}
 
-        {!loading &&
-          error && (
-            <ErrorState
-              message={error}
-            />
-          )}
+        {!loading && error && (
+          <ErrorState message={error} />
+        )}
 
         {!loading &&
           !error &&
@@ -453,28 +417,21 @@ export default function ProductsPage() {
         {!loading &&
           !error &&
           productList.length > 0 &&
-          filteredProducts.length ===
-          0 && (
+          filteredProducts.length === 0 && (
             <EmptyState
               title="No se encontraron productos"
-              message="Prueba con otro nombre, SKU o categoría."
+              message="Prueba con otro nombre, categoría o estado."
             />
           )}
 
         {!loading &&
           !error &&
-          filteredProducts.length >
-          0 && (
+          filteredProducts.length > 0 && (
             <ProductTable
-              products={
-                filteredProducts
-              }
-              categories={
-                categoryList
-              }
-              onToggleActive={
-                handleToggleProduct
-              }
+              products={filteredProducts}
+              categories={categoryList}
+              onEdit={openEditForm}
+              onToggleActive={handleToggleProduct}
             />
           )}
       </Card>

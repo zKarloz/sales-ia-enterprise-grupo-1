@@ -6,6 +6,75 @@ from app.models.customer import Customer
 from app.schemas.customer import CustomerCreate, CustomerUpdate
 
 
+_ALLOWED_DOCUMENT_TYPES = {
+    "DNI",
+    "RUC",
+    "CE",
+    "OTRO",
+}
+
+
+def _normalize_document(
+    document_type: str | None,
+    document_number: str | None,
+) -> tuple[str | None, str | None]:
+    """Normaliza y valida el documento comercial del cliente."""
+
+    normalized_type = (
+        document_type.strip().upper()
+        if document_type
+        else None
+    )
+
+    normalized_number = (
+        document_number.strip().upper()
+        if document_number
+        else None
+    )
+
+    if not normalized_type and not normalized_number:
+        return None, None
+
+    if not normalized_type or not normalized_number:
+        raise ValueError(
+            "El tipo y número de documento deben registrarse juntos."
+        )
+
+    if normalized_type not in _ALLOWED_DOCUMENT_TYPES:
+        raise ValueError("Tipo de documento no válido.")
+
+    if normalized_type in {"DNI", "RUC"}:
+        normalized_number = (
+            normalized_number
+            .replace(" ", "")
+            .replace("-", "")
+        )
+
+        if not normalized_number.isdigit():
+            raise ValueError(
+                f"El {normalized_type} debe contener solo números."
+            )
+
+        expected_length = (
+            8
+            if normalized_type == "DNI"
+            else 11
+        )
+
+        if len(normalized_number) != expected_length:
+            raise ValueError(
+                f"El {normalized_type} debe tener "
+                f"{expected_length} dígitos."
+            )
+
+    if len(normalized_number) > 20:
+        raise ValueError(
+            "El número de documento no puede superar 20 caracteres."
+        )
+
+    return normalized_type, normalized_number
+
+
 def list_customers(
     db: Session,
     include_inactive: bool = False,
@@ -35,14 +104,55 @@ def get_customer(
     return db.get(Customer, customer_id)
 
 
+def get_customer_by_document(
+    db: Session,
+    document_number: str,
+) -> Customer | None:
+    """Busca un cliente por su número de documento."""
+
+    raw_number = document_number.strip().upper()
+
+    if not raw_number:
+        return None
+
+    compact_number = (
+        raw_number
+        .replace(" ", "")
+        .replace("-", "")
+    )
+
+    candidates = {
+        raw_number,
+        compact_number,
+    }
+
+    return db.scalar(
+        select(Customer)
+        .where(
+            Customer.document_number.in_(candidates)
+        )
+        .limit(1)
+    )
+
+
 def create_customer(
     db: Session,
     data: CustomerCreate,
 ) -> Customer:
     """Registra un nuevo cliente."""
 
+    values = data.model_dump()
+
+    (
+        values["document_type"],
+        values["document_number"],
+    ) = _normalize_document(
+        values.get("document_type"),
+        values.get("document_number"),
+    )
+
     customer = Customer(
-        **data.model_dump(),
+        **values,
         is_active=True,
     )
 
@@ -58,7 +168,7 @@ def create_customer(
 
         raise ValueError(
             "No se pudo crear el cliente. "
-            "Verifica que el correo no esté registrado."
+            "Verifica que el correo o documento no estén registrados."
         ) from exc
 
 
@@ -72,6 +182,30 @@ def update_customer(
     changes = data.model_dump(
         exclude_unset=True,
     )
+
+    if (
+        "document_type" in changes
+        or "document_number" in changes
+    ):
+        document_type = changes.get(
+            "document_type",
+            customer.document_type,
+        )
+        document_number = changes.get(
+            "document_number",
+            customer.document_number,
+        )
+
+        (
+            document_type,
+            document_number,
+        ) = _normalize_document(
+            document_type,
+            document_number,
+        )
+
+        changes["document_type"] = document_type
+        changes["document_number"] = document_number
 
     for field, value in changes.items():
         setattr(
@@ -91,7 +225,7 @@ def update_customer(
 
         raise ValueError(
             "No se pudo actualizar el cliente. "
-            "Verifica los datos enviados."
+            "Verifica que el correo o documento no estén registrados."
         ) from exc
 
 

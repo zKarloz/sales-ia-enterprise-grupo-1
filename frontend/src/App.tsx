@@ -6,12 +6,11 @@ import {
 } from "react-router-dom";
 
 import ProtectedRoute from "./components/ProtectedRoute";
+import RoleRoute from "./components/RoleRoute";
 
 import { AuthProvider } from "./context/AuthContext";
 
 import MainLayout from "./layouts/MainLayout";
-
-import RoleRoute from "./components/RoleRoute";
 
 import {
   ROLE_ADMIN,
@@ -27,27 +26,20 @@ import CustomersPage from "./modules/customers/CustomersPage";
 import DashboardPage from "./modules/dashboard/DashboardPage";
 import InventoryPage from "./modules/inventory/InventoryPage";
 import ProductsPage from "./modules/products/ProductsPage";
-import SalesPage from "./modules/sales/SalesPage";
 import ReportsPage from "./modules/reports/ReportsPage";
-
+import SalesPage from "./modules/sales/SalesPage";
+import SuppliersPage from "./modules/suppliers/SuppliersPage";
 
 function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          <Route
-            path="/login"
-            element={<LoginPage />}
-          />
+          <Route path="/login" element={<LoginPage />} />
 
           <Route element={<ProtectedRoute />}>
             <Route element={<MainLayout />}>
-              <Route
-                path="/"
-                element={<DashboardPage />}
-              />
-
+              <Route path="/" element={<DashboardPage />} />
 
               <Route
                 element={
@@ -65,7 +57,6 @@ function App() {
                 />
               </Route>
 
-
               <Route
                 element={
                   <RoleRoute
@@ -80,13 +71,15 @@ function App() {
                   path="/productos"
                   element={<ProductsPage />}
                 />
-
+                <Route
+                  path="/proveedores"
+                  element={<SuppliersPage />}
+                />
                 <Route
                   path="/inventario"
                   element={<InventoryPage />}
                 />
               </Route>
-
 
               <Route
                 element={
@@ -105,7 +98,6 @@ function App() {
                 />
               </Route>
 
-
               <Route
                 element={
                   <RoleRoute
@@ -122,7 +114,6 @@ function App() {
                   element={<AnalyticsPage />}
                 />
               </Route>
-
 
               <Route
                 element={
@@ -144,18 +135,12 @@ function App() {
 
           <Route
             path="*"
-            element={
-              <Navigate
-                to="/"
-                replace
-              />
-            }
+            element={<Navigate to="/" replace />}
           />
         </Routes>
       </AuthProvider>
     </BrowserRouter>
   );
 }
-
 
 export default App;

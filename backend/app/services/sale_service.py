@@ -88,6 +88,11 @@ def create_sale(
         if customer is None:
             raise LookupError("Cliente no encontrado.")
 
+        if not customer.is_active:
+            raise ValueError(
+                f"El cliente '{customer.full_name}' se encuentra inactivo."
+            )
+
         if seller is None:
             raise LookupError("Vendedor no encontrado.")
 
@@ -105,6 +110,12 @@ def create_sale(
             if product is None:
                 raise LookupError(
                     f"Producto {item.product_id} no encontrado."
+                )
+
+            # Impide que alguien registre manualmente una venta utilizando un producto desactivado
+            if not product.is_active:
+                raise ValueError(
+                    f"El producto '{product.name}' se encuentra inactivo."
                 )
 
             if product.stock < item.quantity:
@@ -155,14 +166,21 @@ def create_sale(
             db.add(detail)
             details.append(detail)
 
+            # Conservamos el saldo previo para el Kardex.
+            stock_before = product.stock
+
             # Descontamos el stock real.
             product.stock -= quantity
+
+            stock_after = product.stock
 
             movement = InventoryMovement(
                 product_id=product.id,
                 user_id=seller_id,
                 movement_type="OUT",
                 quantity=quantity,
+                stock_before=stock_before,
+                stock_after=stock_after,
                 reason=f"Venta #{sale.id}",
             )
 

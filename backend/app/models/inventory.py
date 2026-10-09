@@ -18,7 +18,6 @@ class InventoryMovement(Base):
 
     __tablename__ = "inventory_movements"
 
-    # Los tipos permitidos coinciden con el CHECK de Supabase.
     __table_args__ = (
         CheckConstraint(
             "movement_type IN ('IN', 'OUT', 'ADJUSTMENT')",
@@ -33,10 +32,15 @@ class InventoryMovement(Base):
         nullable=False,
     )
 
-    # Usuario responsable del movimiento.
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT"),
         nullable=False,
+    )
+
+    supplier_id: Mapped[int | None] = mapped_column(
+        ForeignKey("suppliers.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
     )
 
     movement_type: Mapped[str] = mapped_column(
@@ -46,6 +50,14 @@ class InventoryMovement(Base):
 
     quantity: Mapped[int] = mapped_column(
         nullable=False,
+    )
+
+    stock_before: Mapped[int | None] = mapped_column(
+        nullable=True,
+    )
+
+    stock_after: Mapped[int | None] = mapped_column(
+        nullable=True,
     )
 
     reason: Mapped[str | None] = mapped_column(
