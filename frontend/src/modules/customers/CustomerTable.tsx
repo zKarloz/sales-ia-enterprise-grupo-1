@@ -10,6 +10,8 @@ import type {
 interface CustomerTableProps {
   customers: Customer[];
 
+  onEdit: (customer: Customer) => void;
+
   onToggleActive: (
     id: number,
     isActive: boolean,
@@ -19,13 +21,14 @@ interface CustomerTableProps {
 
 export default function CustomerTable({
   customers,
+  onEdit,
   onToggleActive,
 }: CustomerTableProps) {
   if (customers.length === 0) {
     return (
       <EmptyState
         title="No se encontraron clientes"
-        message="No existen clientes registrados."
+        message="No existen clientes que coincidan con los filtros."
       />
     );
   }
@@ -45,7 +48,7 @@ export default function CustomerTable({
         <table
           className="
             w-full
-            min-w-[950px]
+            min-w-[1150px]
             border-collapse
             text-left
           "
@@ -57,96 +60,35 @@ export default function CustomerTable({
             "
           >
             <tr>
-              <th
-                className="
-                  px-4
-                  py-3.5
-                  text-[11px]
-                  font-bold
-                  uppercase
-                  tracking-[0.08em]
-                  text-slate-500
-                  dark:text-slate-400
-                "
-              >
-                Cliente
-              </th>
-
-              <th
-                className="
-                  px-4
-                  py-3.5
-                  text-[11px]
-                  font-bold
-                  uppercase
-                  tracking-[0.08em]
-                  text-slate-500
-                  dark:text-slate-400
-                "
-              >
-                Contacto
-              </th>
-
-              <th
-                className="
-                  px-4
-                  py-3.5
-                  text-[11px]
-                  font-bold
-                  uppercase
-                  tracking-[0.08em]
-                  text-slate-500
-                  dark:text-slate-400
-                "
-              >
-                Dirección
-              </th>
-
-              <th
-                className="
-                  px-4
-                  py-3.5
-                  text-[11px]
-                  font-bold
-                  uppercase
-                  tracking-[0.08em]
-                  text-slate-500
-                  dark:text-slate-400
-                "
-              >
-                Registro
-              </th>
-
-              <th
-                className="
-                  px-4
-                  py-3.5
-                  text-[11px]
-                  font-bold
-                  uppercase
-                  tracking-[0.08em]
-                  text-slate-500
-                  dark:text-slate-400
-                "
-              >
-                Estado
-              </th>
-
-              <th
-                className="
-                  px-4
-                  py-3.5
-                  text-right
-                  text-[11px]
-                  font-bold
-                  uppercase
-                  tracking-[0.08em]
-                  text-slate-500
-                  dark:text-slate-400
-                "
-              >
-                Acciones
-              </th>
+              {[
+                "Cliente",
+                "Documento",
+                "Contacto",
+                "Dirección",
+                "Registro",
+                "Estado",
+                "Acciones",
+              ].map((label) => (
+                <th
+                  key={label}
+                  className={`
+                    px-4
+                    py-3.5
+                    text-[11px]
+                    font-bold
+                    uppercase
+                    tracking-[0.08em]
+                    text-slate-500
+                    dark:text-slate-400
+                    ${label === "Acciones"
+                      ? "text-right"
+                      : ""
+                    }
+                  `}
+                >
+                  {label}
+                </th>
+              ))}
             </tr>
           </thead>
 
@@ -159,169 +101,214 @@ export default function CustomerTable({
               dark:bg-slate-900
             "
           >
-            {customers.map(
-              (customer) => (
-                <tr
-                  key={customer.id}
-                  className={`
-                    transition-colors
-                    hover:bg-slate-50/80
-                    dark:hover:bg-slate-800/40
-                    ${customer.is_active
-                      ? ""
-                      : "opacity-70"
-                    }
-                  `}
-                >
-                  <td
+            {customers.map((customer) => (
+              <tr
+                key={customer.id}
+                className={`
+                  transition-colors
+                  hover:bg-slate-50/80
+                  dark:hover:bg-slate-800/40
+                  ${customer.is_active
+                    ? ""
+                    : "opacity-70"
+                  }
+                `}
+              >
+                {/* Cliente */}
+                <td className="px-4 py-4">
+                  <div
                     className="
-                      px-4
-                      py-4
+                      flex
+                      items-center
+                      gap-3
                     "
                   >
                     <div
                       className="
-                        flex
-                        items-center
-                        gap-3
+                        grid
+                        h-9
+                        w-9
+                        shrink-0
+                        place-items-center
+                        rounded-lg
+                        bg-cyan-100
+                        text-sm
+                        font-bold
+                        text-cyan-800
+                        dark:bg-cyan-400/10
+                        dark:text-cyan-300
                       "
                     >
-                      <div
+                      {customer.full_name
+                        .trim()
+                        .charAt(0)
+                        .toUpperCase()}
+                    </div>
+
+                    <div className="min-w-0">
+                      <p
                         className="
-                          grid
-                          h-9
-                          w-9
-                          shrink-0
-                          place-items-center
-                          rounded-lg
-                          bg-cyan-100
-                          text-sm
-                          font-bold
-                          text-cyan-800
-                          dark:bg-cyan-400/10
-                          dark:text-cyan-300
+                          font-semibold
+                          text-slate-900
+                          dark:text-slate-100
                         "
                       >
-                        {customer.full_name
-                          .trim()
-                          .charAt(0)
-                          .toUpperCase()}
-                      </div>
+                        {customer.full_name}
+                      </p>
 
-                      <div className="min-w-0">
-                        <p
-                          className="
-                            font-semibold
-                            text-slate-900
-                            dark:text-slate-100
-                          "
-                        >
-                          {customer.full_name}
-                        </p>
-
-                        <p
-                          className="
-                            mt-0.5
-                            text-xs
-                            text-slate-400
-                            dark:text-slate-500
-                          "
-                        >
-                          ID #{customer.id}
-                        </p>
-                      </div>
+                      <p
+                        className="
+                          mt-0.5
+                          text-xs
+                          text-slate-400
+                          dark:text-slate-500
+                        "
+                      >
+                        ID #{customer.id}
+                      </p>
                     </div>
-                  </td>
+                  </div>
+                </td>
 
-                  <td
-                    className="
-                      px-4
-                      py-4
-                      text-sm
-                    "
-                  >
-                    <p
+                {/* Documento */}
+                <td
+                  className="
+                    whitespace-nowrap
+                    px-4
+                    py-4
+                    text-sm
+                  "
+                >
+                  {customer.document_number ? (
+                    <>
+                      <p
+                        className="
+                          font-semibold
+                          text-slate-700
+                          dark:text-slate-200
+                        "
+                      >
+                        {customer.document_number}
+                      </p>
+
+                      <p
+                        className="
+                          mt-0.5
+                          text-xs
+                          text-slate-400
+                          dark:text-slate-500
+                        "
+                      >
+                        {customer.document_type ??
+                          "Documento"}
+                      </p>
+                    </>
+                  ) : (
+                    <span
                       className="
-                        text-slate-700
-                        dark:text-slate-300
+                        text-slate-400
+                        dark:text-slate-500
                       "
                     >
-                      {customer.email ??
-                        "Sin correo"}
-                    </p>
+                      Sin documento
+                    </span>
+                  )}
+                </td>
 
-                    <p
-                      className="
-                        mt-1
-                        text-xs
-                        text-slate-500
-                        dark:text-slate-400
-                      "
-                    >
-                      {customer.phone ??
-                        "Sin teléfono"}
-                    </p>
-                  </td>
-
-                  <td
+                {/* Contacto */}
+                <td className="px-4 py-4 text-sm">
+                  <p
                     className="
-                      max-w-[240px]
-                      px-4
-                      py-4
-                      text-sm
-                      text-slate-600
+                      text-slate-700
                       dark:text-slate-300
                     "
                   >
-                    {customer.address ??
-                      "Sin dirección"}
-                  </td>
+                    {customer.email ??
+                      "Sin correo"}
+                  </p>
 
-                  <td
+                  <p
                     className="
-                      px-4
-                      py-4
-                      text-sm
-                      text-slate-600
-                      dark:text-slate-300
+                      mt-1
+                      text-xs
+                      text-slate-500
+                      dark:text-slate-400
                     "
                   >
-                    {customer.created_at
-                      ? new Date(
-                        customer.created_at,
-                      ).toLocaleDateString(
-                        "es-PE",
-                      )
-                      : "—"}
-                  </td>
+                    {customer.phone ??
+                      "Sin teléfono"}
+                  </p>
+                </td>
 
-                  <td
+                {/* Dirección */}
+                <td
+                  className="
+                    max-w-[240px]
+                    px-4
+                    py-4
+                    text-sm
+                    text-slate-600
+                    dark:text-slate-300
+                  "
+                >
+                  {customer.address ??
+                    "Sin dirección"}
+                </td>
+
+                {/* Registro */}
+                <td
+                  className="
+                    whitespace-nowrap
+                    px-4
+                    py-4
+                    text-sm
+                    text-slate-600
+                    dark:text-slate-300
+                  "
+                >
+                  {customer.created_at
+                    ? new Date(
+                      customer.created_at,
+                    ).toLocaleDateString(
+                      "es-PE",
+                    )
+                    : "—"}
+                </td>
+
+                {/* Estado */}
+                <td className="px-4 py-4">
+                  <StatusBadge
+                    status={
+                      customer.is_active
+                        ? "active"
+                        : "inactive"
+                    }
+                    label={
+                      customer.is_active
+                        ? "Activo"
+                        : "Inactivo"
+                    }
+                  />
+                </td>
+
+                {/* Acciones */}
+                <td className="px-4 py-4">
+                  <div
                     className="
-                      px-4
-                      py-4
+                      flex
+                      justify-end
+                      gap-2
                     "
                   >
-                    <StatusBadge
-                      status={
-                        customer.is_active
-                          ? "active"
-                          : "inactive"
+                    <Button
+                      variant="secondary"
+                      onClick={() =>
+                        onEdit(customer)
                       }
-                      label={
-                        customer.is_active
-                          ? "Activo"
-                          : "Inactivo"
-                      }
-                    />
-                  </td>
+                    >
+                      Editar
+                    </Button>
 
-                  <td
-                    className="
-                      px-4
-                      py-4
-                      text-right
-                    "
-                  >
                     <Button
                       variant={
                         customer.is_active
@@ -339,10 +326,10 @@ export default function CustomerTable({
                         ? "Desactivar"
                         : "Activar"}
                     </Button>
-                  </td>
-                </tr>
-              ),
-            )}
+                  </div>
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>

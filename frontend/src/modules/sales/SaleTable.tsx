@@ -30,7 +30,7 @@ export default function SaleTable({
       customers.map(
         (customer) => [
           customer.id,
-          customer.full_name,
+          customer,
         ],
       ),
     );
@@ -60,7 +60,7 @@ export default function SaleTable({
         <table
           className="
             w-full
-            min-w-[1100px]
+            min-w-[1200px]
             border-collapse
             text-left
           "
@@ -75,6 +75,7 @@ export default function SaleTable({
               {[
                 "ID",
                 "Cliente",
+                "Documento",
                 "Vendedor",
                 "Fecha",
                 "Productos",
@@ -146,6 +147,11 @@ export default function SaleTable({
                       : sale.status ??
                       "Sin estado";
 
+                const customer =
+                  customerMap.get(
+                    sale.customer_id,
+                  );
+
                 return (
                   <tr
                     key={sale.id}
@@ -182,11 +188,69 @@ export default function SaleTable({
                           dark:text-slate-100
                         "
                       >
-                        {customerMap.get(
-                          sale.customer_id,
-                        ) ??
+                        {customer?.full_name ??
                           `Cliente #${sale.customer_id}`}
                       </p>
+
+                      {customer &&
+                        !customer.is_active && (
+                          <p
+                            className="
+                              mt-1
+                              text-xs
+                              font-semibold
+                              text-amber-600
+                              dark:text-amber-400
+                            "
+                          >
+                            Cliente inactivo
+                          </p>
+                        )}
+                    </td>
+
+                    {/* Documento */}
+                    <td
+                      className="
+                        whitespace-nowrap
+                        px-4
+                        py-4
+                        text-sm
+                      "
+                    >
+                      {customer?.document_number ? (
+                        <>
+                          <p
+                            className="
+                              font-semibold
+                              text-slate-700
+                              dark:text-slate-200
+                            "
+                          >
+                            {customer.document_number}
+                          </p>
+
+                          <p
+                            className="
+                              mt-0.5
+                              text-xs
+                              text-slate-400
+                              dark:text-slate-500
+                            "
+                          >
+                            {customer.document_type ??
+                              "Documento"}
+                          </p>
+                        </>
+                      ) : (
+                        <span
+                          className="
+                            text-slate-400
+                            dark:text-slate-500
+                          "
+                        >
+                          Sin documento
+                        </span>
+                      )}
                     </td>
 
                     <td

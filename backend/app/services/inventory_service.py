@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.models.audit_log import AuditLog
 from app.models.inventory import InventoryMovement
 from app.models.product import Product
+from app.models.supplier import Supplier
 from app.models.user import User
 from app.schemas.inventory import InventoryMovementCreate
 
@@ -27,13 +28,11 @@ def create_movement(
     """Actualiza stock y registra el movimiento en una transacción."""
 
     try:
-        # Validamos al usuario responsable.
         user = db.get(User, user_id)
 
         if user is None:
             raise LookupError("Usuario no encontrado.")
 
-        # Bloqueamos el producto mientras cambia el stock.
         product = db.scalar(
             select(Product)
             .where(Product.id == data.product_id)
@@ -42,6 +41,40 @@ def create_movement(
 
         if product is None:
             raise LookupError("Producto no encontrado.")
+
+        if not product.is_active:
+            raise ValueError(
+                f"El producto '{product.name}' se encuentra inactivo."
+            )
+
+        supplier: Supplier | None = None
+
+        if data.movement_type == "IN":
+            if data.supplier_id is None:
+                raise ValueError(
+                    "Debes seleccionar un proveedor para registrar una entrada."
+                )
+
+            supplier = db.get(
+                Supplier,
+                data.supplier_id,
+            )
+
+            if supplier is None:
+                raise LookupError("Proveedor no encontrado.")
+
+            if not supplier.is_active:
+                raise ValueError(
+                    f"El proveedor '{supplier.business_name}' "
+                    "se encuentra inactivo."
+                )
+
+        elif data.supplier_id is not None:
+            raise ValueError(
+                "El proveedor solo puede asociarse a movimientos de entrada."
+            )
+
+        stock_before = product.stock
 
         if data.movement_type == "OUT":
             if product.stock < data.quantity:
@@ -54,19 +87,26 @@ def create_movement(
         else:
             product.stock += data.quantity
 
-        # Guardamos el movimiento histórico.
+        stock_after = product.stock
+
         movement = InventoryMovement(
             product_id=data.product_id,
             user_id=user_id,
+            supplier_id=(
+                supplier.id
+                if supplier is not None
+                else None
+            ),
             movement_type=data.movement_type,
             quantity=data.quantity,
+            stock_before=stock_before,
+            stock_after=stock_after,
             reason=data.reason,
         )
 
         db.add(movement)
         db.flush()
 
-        # Registramos trazabilidad.
         audit = AuditLog(
             user_id=user_id,
             action="UPDATE_STOCK",
@@ -76,13 +116,14 @@ def create_movement(
                 "movement_id": movement.id,
                 "movement_type": data.movement_type,
                 "quantity": data.quantity,
-                "new_stock": product.stock,
+                "supplier_id": movement.supplier_id,
+                "stock_before": stock_before,
+                "stock_after": stock_after,
             },
         )
 
         db.add(audit)
 
-        # Stock, movimiento y auditoría se confirman juntos.
         db.commit()
         db.refresh(movement)
 

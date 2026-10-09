@@ -19,6 +19,15 @@ export async function getCustomer(
 }
 
 
+export async function getCustomerByDocument(
+  documentNumber: string,
+): Promise<Customer | null> {
+  return apiRequest<Customer | null>(
+    `/api/customers/by-document/${encodeURIComponent(documentNumber)}`,
+  );
+}
+
+
 export async function createCustomer(
   customer: CustomerCreate,
 ): Promise<Customer> {

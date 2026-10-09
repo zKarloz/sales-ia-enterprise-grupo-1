@@ -1,6 +1,12 @@
 import {
+  useEffect,
   useState,
 } from "react";
+
+import {
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 
 import Button from "../../components/Button";
 import Card from "../../components/Card";
@@ -29,6 +35,7 @@ import {
 
 import type {
   Customer,
+  CustomerDocumentType,
 } from "../../types/customer";
 
 import type {
@@ -91,27 +98,11 @@ function MetricCard({
         {label}
       </span>
 
-      <p
-        className="
-          mt-4
-          text-3xl
-          font-bold
-          tracking-tight
-          text-slate-950
-          dark:text-white
-        "
-      >
+      <p className="mt-4 text-3xl font-bold tracking-tight text-slate-950 dark:text-white">
         {value}
       </p>
 
-      <p
-        className="
-          mt-2
-          text-sm
-          text-slate-500
-          dark:text-slate-400
-        "
-      >
+      <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
         {helper}
       </p>
     </div>
@@ -121,35 +112,25 @@ function MetricCard({
 
 export default function SalesPage() {
   const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const canCreateSale =
     user?.role === ROLE_ADMIN ||
     user?.role === ROLE_SELLER;
 
 
-  const [
-    showForm,
-    setShowForm,
-  ] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [initialCustomerId, setInitialCustomerId] =
+    useState<number | null>(null);
 
-  const [
-    actionError,
-    setActionError,
-  ] = useState<string | null>(
-    null,
-  );
+  const [actionError, setActionError] =
+    useState<string | null>(null);
 
-  const [
-    successMessage,
-    setSuccessMessage,
-  ] = useState<string | null>(
-    null,
-  );
+  const [successMessage, setSuccessMessage] =
+    useState<string | null>(null);
 
-  const [
-    saving,
-    setSaving,
-  ] = useState(false);
+  const [saving, setSaving] = useState(false);
 
 
   const {
@@ -166,8 +147,9 @@ export default function SalesPage() {
     data: customers,
     loading: customersLoading,
     error: customersError,
+    refetch: refetchCustomers,
   } = useApi<Customer[]>(
-    "/api/customers",
+    "/api/customers?include_inactive=true",
   );
 
 
@@ -190,17 +172,57 @@ export default function SalesPage() {
   );
 
 
-  const saleList =
-    sales ?? [];
+  const saleList = sales ?? [];
+  const customerList = customers ?? [];
+  const activeCustomerList =
+    customerList.filter(
+      (customer) =>
+        customer.is_active,
+    );
+  const productList = products ?? [];
+  const sellerList = sellers ?? [];
 
-  const customerList =
-    customers ?? [];
 
-  const productList =
-    products ?? [];
+  useEffect(() => {
+    if (!canCreateSale) {
+      return;
+    }
 
-  const sellerList =
-    sellers ?? [];
+    const params = new URLSearchParams(
+      location.search,
+    );
+
+    if (params.get("openSale") !== "1") {
+      return;
+    }
+
+    const customerId = Number(
+      params.get("customer_id"),
+    );
+
+    if (!Number.isInteger(customerId) || customerId <= 0) {
+      return;
+    }
+
+    setInitialCustomerId(customerId);
+    setShowForm(true);
+    setActionError(null);
+    setSuccessMessage(null);
+
+    void refetchCustomers();
+
+    navigate(
+      "/ventas",
+      {
+        replace: true,
+      },
+    );
+  }, [
+    canCreateSale,
+    location.search,
+    navigate,
+    refetchCustomers,
+  ]);
 
 
   const loading =
@@ -232,6 +254,7 @@ export default function SalesPage() {
       ]);
 
       setShowForm(false);
+      setInitialCustomerId(null);
 
       setSuccessMessage(
         "La venta fue registrada y el inventario fue actualizado correctamente.",
@@ -248,31 +271,39 @@ export default function SalesPage() {
   }
 
 
+  function handleRegisterCustomer(
+    documentType: CustomerDocumentType,
+    documentNumber: string,
+  ) {
+    const params = new URLSearchParams({
+      new: "1",
+      returnTo: "/ventas",
+      document_type: documentType,
+      document_number: documentNumber,
+    });
+
+    navigate(
+      `/clientes?${params.toString()}`,
+    );
+  }
+
+
   const totalSales =
     saleList.reduce(
       (sum, sale) =>
-        sum +
-        Number(
-          sale.total_amount,
-        ),
+        sum + Number(sale.total_amount),
       0,
     );
 
 
   const averageTicket =
     saleList.length > 0
-      ? totalSales /
-      saleList.length
+      ? totalSales / saleList.length
       : 0;
 
 
   return (
-    <section
-      className="
-        w-full
-        space-y-6
-      "
-    >
+    <section className="w-full space-y-6">
       <PageHeader
         title="Ventas"
         description="Gestiona las ventas y operaciones comerciales de SalesIA Enterprise."
@@ -281,17 +312,10 @@ export default function SalesPage() {
             <Button
               disabled={loading}
               onClick={() => {
-                setActionError(
-                  null,
-                );
-
-                setSuccessMessage(
-                  null,
-                );
-
-                setShowForm(
-                  true,
-                );
+                setActionError(null);
+                setSuccessMessage(null);
+                setInitialCustomerId(null);
+                setShowForm(true);
               }}
             >
               + Nueva venta
@@ -301,9 +325,7 @@ export default function SalesPage() {
       />
 
       {actionError && (
-        <ErrorState
-          message={actionError}
-        />
+        <ErrorState message={actionError} />
       )}
 
       {successMessage && (
@@ -315,31 +337,21 @@ export default function SalesPage() {
 
       {showForm && (
         <SaleForm
-          customers={
-            customerList
-          }
-          products={
-            productList
-          }
-          onSubmit={
-            handleCreateSale
-          }
+          customers={activeCustomerList}
+          products={productList}
+          initialCustomerId={initialCustomerId}
+          onRegisterCustomer={handleRegisterCustomer}
+          onSubmit={handleCreateSale}
           onCancel={() => {
             setActionError(null);
+            setInitialCustomerId(null);
             setShowForm(false);
           }}
           submitting={saving}
         />
       )}
 
-      <div
-        className="
-          grid
-          grid-cols-1
-          gap-4
-          md:grid-cols-3
-        "
-      >
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <MetricCard
           label="Operaciones"
           value={saleList.length.toLocaleString(
@@ -353,10 +365,8 @@ export default function SalesPage() {
           value={`S/ ${totalSales.toLocaleString(
             "es-PE",
             {
-              minimumFractionDigits:
-                2,
-              maximumFractionDigits:
-                2,
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
             },
           )}`}
           helper="Monto acumulado"
@@ -367,10 +377,8 @@ export default function SalesPage() {
           value={`S/ ${averageTicket.toLocaleString(
             "es-PE",
             {
-              minimumFractionDigits:
-                2,
-              maximumFractionDigits:
-                2,
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
             },
           )}`}
           helper="Promedio por operación"
@@ -382,22 +390,16 @@ export default function SalesPage() {
         subtitle="Operaciones comerciales registradas en el sistema."
       >
         {loading && (
-          <LoadingState
-            message="Cargando ventas..."
-          />
+          <LoadingState message="Cargando ventas..." />
+        )}
+
+        {!loading && error && (
+          <ErrorState message={error} />
         )}
 
         {!loading &&
-          error && (
-            <ErrorState
-              message={error}
-            />
-          )}
-
-        {!loading &&
           !error &&
-          saleList.length ===
-          0 && (
+          saleList.length === 0 && (
             <EmptyState
               title="No hay ventas"
               message="Todavía no existen ventas registradas."
@@ -406,16 +408,11 @@ export default function SalesPage() {
 
         {!loading &&
           !error &&
-          saleList.length >
-          0 && (
+          saleList.length > 0 && (
             <SaleTable
               sales={saleList}
-              customers={
-                customerList
-              }
-              sellers={
-                sellerList
-              }
+              customers={customerList}
+              sellers={sellerList}
             />
           )}
       </Card>

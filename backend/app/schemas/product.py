@@ -21,7 +21,6 @@ class ProductUpdate(BaseModel):
     sku: str | None = None
     name: str | None = None
     price: Decimal | None = Field(default=None, ge=0)
-    stock: int | None = Field(default=None, ge=0)
 
 
 class ProductStatusUpdate(BaseModel):

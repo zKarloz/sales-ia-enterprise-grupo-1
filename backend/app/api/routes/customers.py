@@ -2,14 +2,23 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.api.dependencies.roles import require_roles
-
 from app.core.database import get_db
 from app.core.roles import ROLE_SELLER
-
-from app.schemas.customer import CustomerCreate, CustomerResponse, CustomerStatusUpdate,CustomerUpdate
 from app.schemas.auth import CurrentUserResponse
-
-from app.services.customer_service import create_customer, get_customer, list_customers, set_customer_active, update_customer
+from app.schemas.customer import (
+    CustomerCreate,
+    CustomerResponse,
+    CustomerStatusUpdate,
+    CustomerUpdate,
+)
+from app.services.customer_service import (
+    create_customer,
+    get_customer,
+    get_customer_by_document,
+    list_customers,
+    set_customer_active,
+    update_customer,
+)
 
 
 router = APIRouter(
@@ -37,7 +46,29 @@ def get_customers(
     )
 
 
-@router.get("/{customer_id}", response_model=CustomerResponse)
+@router.get(
+    "/by-document/{document_number}",
+    response_model=CustomerResponse | None,
+)
+def get_customer_by_document_number(
+    document_number: str,
+    db: Session = Depends(get_db),
+    current_user: CurrentUserResponse = Depends(
+        require_roles(ROLE_SELLER),
+    ),
+):
+    """Busca un cliente por DNI, RUC u otro documento registrado."""
+
+    return get_customer_by_document(
+        db,
+        document_number,
+    )
+
+
+@router.get(
+    "/{customer_id}",
+    response_model=CustomerResponse,
+)
 def get_customer_by_id(
     customer_id: int,
     db: Session = Depends(get_db),
@@ -82,7 +113,10 @@ def post_customer(
         ) from exc
 
 
-@router.put("/{customer_id}", response_model=CustomerResponse)
+@router.put(
+    "/{customer_id}",
+    response_model=CustomerResponse,
+)
 def put_customer(
     customer_id: int,
     data: CustomerUpdate,

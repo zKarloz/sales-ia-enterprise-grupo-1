@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useState,
   type FormEvent,
 } from "react";
@@ -10,19 +11,20 @@ import type {
 } from "../../types/category";
 
 import type {
+  Product,
   ProductCreate,
 } from "../../types/product";
 
 
 interface ProductFormProps {
   categories: Category[];
+  initialProduct?: Product | null;
 
   onSubmit: (
     product: ProductCreate,
   ) => void | Promise<void>;
 
   onCancel: () => void;
-
   submitting?: boolean;
 }
 
@@ -66,34 +68,31 @@ const labelClasses = `
 
 export default function ProductForm({
   categories,
+  initialProduct = null,
   onSubmit,
   onCancel,
   submitting = false,
 }: ProductFormProps) {
-  const [
-    sku,
-    setSku,
-  ] = useState("");
+  const [sku, setSku] = useState("");
+  const [name, setName] = useState("");
+  const [price, setPrice] = useState("");
+  const [stock, setStock] = useState("0");
+  const [categoryId, setCategoryId] = useState("");
 
-  const [
-    name,
-    setName,
-  ] = useState("");
+  const editing = initialProduct !== null;
 
-  const [
-    price,
-    setPrice,
-  ] = useState("");
 
-  const [
-    stock,
-    setStock,
-  ] = useState("0");
-
-  const [
-    categoryId,
-    setCategoryId,
-  ] = useState("");
+  useEffect(() => {
+    setSku(initialProduct?.sku ?? "");
+    setName(initialProduct?.name ?? "");
+    setPrice(initialProduct?.price ?? "");
+    setStock(String(initialProduct?.stock ?? 0));
+    setCategoryId(
+      initialProduct
+        ? String(initialProduct.category_id)
+        : "",
+    );
+  }, [initialProduct]);
 
 
   async function handleSubmit(
@@ -101,14 +100,9 @@ export default function ProductForm({
   ) {
     event.preventDefault();
 
-    const numericPrice =
-      Number(price);
-
-    const numericStock =
-      Number(stock);
-
-    const numericCategoryId =
-      Number(categoryId);
+    const numericPrice = Number(price);
+    const numericStock = Number(stock);
+    const numericCategoryId = Number(categoryId);
 
     if (
       !sku.trim() ||
@@ -121,20 +115,11 @@ export default function ProductForm({
     }
 
     await onSubmit({
-      category_id:
-        numericCategoryId,
-
-      sku:
-        sku.trim(),
-
-      name:
-        name.trim(),
-
-      price:
-        numericPrice,
-
-      stock:
-        numericStock,
+      category_id: numericCategoryId,
+      sku: sku.trim(),
+      name: name.trim(),
+      price: numericPrice,
+      stock: numericStock,
     });
   }
 
@@ -176,63 +161,32 @@ export default function ProductForm({
             dark:text-cyan-400
           "
         >
-          Registro
+          {editing ? "Mantenimiento" : "Registro"}
         </p>
 
-        <h2
-          className="
-            mt-1
-            text-lg
-            font-bold
-            text-slate-950
-            dark:text-white
-          "
-        >
-          Nuevo producto
+        <h2 className="mt-1 text-lg font-bold text-slate-950 dark:text-white">
+          {editing ? "Editar producto" : "Nuevo producto"}
         </h2>
 
-        <p
-          className="
-            mt-1.5
-            text-sm
-            text-slate-500
-            dark:text-slate-400
-          "
-        >
-          Registra un producto,
-          su categoría, precio y
-          stock inicial.
+        <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400">
+          {editing
+            ? "Actualiza los datos comerciales del producto."
+            : "Registra un producto, su categoría, precio y stock inicial."}
         </p>
       </header>
 
       <div className="p-5 sm:p-6">
-        <div
-          className="
-            grid
-            grid-cols-1
-            gap-5
-            md:grid-cols-2
-          "
-        >
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
           <div>
-            <label
-              htmlFor="product-sku"
-              className={labelClasses}
-            >
+            <label htmlFor="product-sku" className={labelClasses}>
               SKU
-              <span className="ml-1 text-red-500">
-                *
-              </span>
+              <span className="ml-1 text-red-500">*</span>
             </label>
 
             <input
               id="product-sku"
               value={sku}
-              onChange={(event) =>
-                setSku(
-                  event.target.value,
-                )
-              }
+              onChange={(event) => setSku(event.target.value)}
               placeholder="Ej. LAP-001"
               required
               disabled={submitting}
@@ -241,24 +195,15 @@ export default function ProductForm({
           </div>
 
           <div>
-            <label
-              htmlFor="product-name"
-              className={labelClasses}
-            >
+            <label htmlFor="product-name" className={labelClasses}>
               Nombre del producto
-              <span className="ml-1 text-red-500">
-                *
-              </span>
+              <span className="ml-1 text-red-500">*</span>
             </label>
 
             <input
               id="product-name"
               value={name}
-              onChange={(event) =>
-                setName(
-                  event.target.value,
-                )
-              }
+              onChange={(event) => setName(event.target.value)}
               placeholder="Ej. Laptop empresarial"
               required
               disabled={submitting}
@@ -267,57 +212,36 @@ export default function ProductForm({
           </div>
 
           <div>
-            <label
-              htmlFor="product-category"
-              className={labelClasses}
-            >
+            <label htmlFor="product-category" className={labelClasses}>
               Categoría
-              <span className="ml-1 text-red-500">
-                *
-              </span>
+              <span className="ml-1 text-red-500">*</span>
             </label>
 
             <select
               id="product-category"
               value={categoryId}
-              onChange={(event) =>
-                setCategoryId(
-                  event.target.value,
-                )
-              }
+              onChange={(event) => setCategoryId(event.target.value)}
               required
-              disabled={
-                submitting ||
-                categories.length === 0
-              }
+              disabled={submitting || categories.length === 0}
               className={inputClasses}
             >
-              <option value="">
-                Seleccionar categoría
-              </option>
+              <option value="">Seleccionar categoría</option>
 
-              {categories.map(
-                (category) => (
-                  <option
-                    key={category.id}
-                    value={category.id}
-                  >
-                    {category.name}
-                  </option>
-                ),
-              )}
+              {categories.map((category) => (
+                <option
+                  key={category.id}
+                  value={category.id}
+                >
+                  {category.name}
+                </option>
+              ))}
             </select>
           </div>
 
           <div>
-            <label
-              htmlFor="product-price"
-              className={labelClasses}
-            >
+            <label htmlFor="product-price" className={labelClasses}>
               Precio
-              <span className="ml-1 text-red-500">
-                *
-              </span>
+              <span className="ml-1 text-red-500">*</span>
             </label>
 
             <div className="relative">
@@ -343,31 +267,19 @@ export default function ProductForm({
                 min="0"
                 step="0.01"
                 value={price}
-                onChange={(event) =>
-                  setPrice(
-                    event.target.value,
-                  )
-                }
+                onChange={(event) => setPrice(event.target.value)}
                 placeholder="0.00"
                 required
                 disabled={submitting}
-                className={`
-                  ${inputClasses}
-                  pl-10
-                `}
+                className={`${inputClasses} pl-10`}
               />
             </div>
           </div>
 
           <div>
-            <label
-              htmlFor="product-stock"
-              className={labelClasses}
-            >
-              Stock inicial
-              <span className="ml-1 text-red-500">
-                *
-              </span>
+            <label htmlFor="product-stock" className={labelClasses}>
+              {editing ? "Stock actual" : "Stock inicial"}
+              <span className="ml-1 text-red-500">*</span>
             </label>
 
             <input
@@ -376,26 +288,16 @@ export default function ProductForm({
               min="0"
               step="1"
               value={stock}
-              onChange={(event) =>
-                setStock(
-                  event.target.value,
-                )
-              }
+              onChange={(event) => setStock(event.target.value)}
               required
-              disabled={submitting}
+              disabled={submitting || editing}
               className={inputClasses}
             />
 
-            <p
-              className="
-                mt-2
-                text-xs
-                text-slate-400
-                dark:text-slate-500
-              "
-            >
-              Este valor será el stock
-              disponible inicial.
+            <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
+              {editing
+                ? "El stock se modificará desde Inventario/Kardex para conservar trazabilidad."
+                : "Este valor será el stock disponible inicial."}
             </p>
           </div>
         </div>
@@ -427,13 +329,12 @@ export default function ProductForm({
           Cancelar
         </Button>
 
-        <Button
-          type="submit"
-          disabled={submitting}
-        >
+        <Button type="submit" disabled={submitting}>
           {submitting
             ? "Guardando..."
-            : "Guardar producto"}
+            : editing
+              ? "Guardar cambios"
+              : "Guardar producto"}
         </Button>
       </footer>
     </form>
