@@ -76,7 +76,6 @@ export default function ProductForm({
   const [sku, setSku] = useState("");
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
-  const [stock, setStock] = useState("0");
   const [categoryId, setCategoryId] = useState("");
 
   const editing = initialProduct !== null;
@@ -86,7 +85,6 @@ export default function ProductForm({
     setSku(initialProduct?.sku ?? "");
     setName(initialProduct?.name ?? "");
     setPrice(initialProduct?.price ?? "");
-    setStock(String(initialProduct?.stock ?? 0));
     setCategoryId(
       initialProduct
         ? String(initialProduct.category_id)
@@ -101,15 +99,16 @@ export default function ProductForm({
     event.preventDefault();
 
     const numericPrice = Number(price);
-    const numericStock = Number(stock);
     const numericCategoryId = Number(categoryId);
 
     if (
       !sku.trim() ||
       !name.trim() ||
       !categoryId ||
+      !Number.isFinite(numericPrice) ||
       numericPrice < 0 ||
-      numericStock < 0
+      !Number.isInteger(numericCategoryId) ||
+      numericCategoryId <= 0
     ) {
       return;
     }
@@ -119,7 +118,6 @@ export default function ProductForm({
       sku: sku.trim(),
       name: name.trim(),
       price: numericPrice,
-      stock: numericStock,
     });
   }
 
@@ -170,15 +168,18 @@ export default function ProductForm({
 
         <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400">
           {editing
-            ? "Actualiza los datos comerciales del producto."
-            : "Registra un producto, su categoría, precio y stock inicial."}
+            ? "Actualiza los datos comerciales del producto. El stock se administra desde Inventario/Kardex."
+            : "Registra los datos comerciales del producto. Se creará con stock 0."}
         </p>
       </header>
 
       <div className="p-5 sm:p-6">
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
           <div>
-            <label htmlFor="product-sku" className={labelClasses}>
+            <label
+              htmlFor="product-sku"
+              className={labelClasses}
+            >
               SKU
               <span className="ml-1 text-red-500">*</span>
             </label>
@@ -186,7 +187,9 @@ export default function ProductForm({
             <input
               id="product-sku"
               value={sku}
-              onChange={(event) => setSku(event.target.value)}
+              onChange={(event) =>
+                setSku(event.target.value)
+              }
               placeholder="Ej. LAP-001"
               required
               disabled={submitting}
@@ -195,7 +198,10 @@ export default function ProductForm({
           </div>
 
           <div>
-            <label htmlFor="product-name" className={labelClasses}>
+            <label
+              htmlFor="product-name"
+              className={labelClasses}
+            >
               Nombre del producto
               <span className="ml-1 text-red-500">*</span>
             </label>
@@ -203,7 +209,9 @@ export default function ProductForm({
             <input
               id="product-name"
               value={name}
-              onChange={(event) => setName(event.target.value)}
+              onChange={(event) =>
+                setName(event.target.value)
+              }
               placeholder="Ej. Laptop empresarial"
               required
               disabled={submitting}
@@ -212,7 +220,10 @@ export default function ProductForm({
           </div>
 
           <div>
-            <label htmlFor="product-category" className={labelClasses}>
+            <label
+              htmlFor="product-category"
+              className={labelClasses}
+            >
               Categoría
               <span className="ml-1 text-red-500">*</span>
             </label>
@@ -220,12 +231,19 @@ export default function ProductForm({
             <select
               id="product-category"
               value={categoryId}
-              onChange={(event) => setCategoryId(event.target.value)}
+              onChange={(event) =>
+                setCategoryId(event.target.value)
+              }
               required
-              disabled={submitting || categories.length === 0}
+              disabled={
+                submitting ||
+                categories.length === 0
+              }
               className={inputClasses}
             >
-              <option value="">Seleccionar categoría</option>
+              <option value="">
+                Seleccionar categoría
+              </option>
 
               {categories.map((category) => (
                 <option
@@ -239,7 +257,10 @@ export default function ProductForm({
           </div>
 
           <div>
-            <label htmlFor="product-price" className={labelClasses}>
+            <label
+              htmlFor="product-price"
+              className={labelClasses}
+            >
               Precio
               <span className="ml-1 text-red-500">*</span>
             </label>
@@ -267,7 +288,9 @@ export default function ProductForm({
                 min="0"
                 step="0.01"
                 value={price}
-                onChange={(event) => setPrice(event.target.value)}
+                onChange={(event) =>
+                  setPrice(event.target.value)
+                }
                 placeholder="0.00"
                 required
                 disabled={submitting}
@@ -275,31 +298,49 @@ export default function ProductForm({
               />
             </div>
           </div>
+        </div>
 
-          <div>
-            <label htmlFor="product-stock" className={labelClasses}>
-              {editing ? "Stock actual" : "Stock inicial"}
-              <span className="ml-1 text-red-500">*</span>
-            </label>
+        <div
+          className="
+            mt-5
+            rounded-2xl
+            border
+            border-cyan-200
+            bg-cyan-50
+            p-4
+            dark:border-cyan-900/60
+            dark:bg-cyan-950/20
+          "
+        >
+          <p className="text-sm font-bold text-slate-900 dark:text-slate-100">
+            Control de inventario
+          </p>
 
-            <input
-              id="product-stock"
-              type="number"
-              min="0"
-              step="1"
-              value={stock}
-              onChange={(event) => setStock(event.target.value)}
-              required
-              disabled={submitting || editing}
-              className={inputClasses}
-            />
+          {editing ? (
+            <>
+              <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+                Stock actual:{" "}
+                <span className="font-bold">
+                  {initialProduct.stock}
+                </span>
+              </p>
 
-            <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
-              {editing
-                ? "El stock se modificará desde Inventario/Kardex para conservar trazabilidad."
-                : "Este valor será el stock disponible inicial."}
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                Para aumentar o disminuir existencias utiliza el módulo
+                Inventario/Kardex. El stock no puede modificarse desde
+                mantenimiento de productos.
+              </p>
+            </>
+          ) : (
+            <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+              El producto se registrará con{" "}
+              <span className="font-bold">
+                stock 0
+              </span>
+              . Para ingresar existencias registra posteriormente una
+              entrada desde Inventario/Kardex.
             </p>
-          </div>
+          )}
         </div>
       </div>
 
@@ -329,7 +370,10 @@ export default function ProductForm({
           Cancelar
         </Button>
 
-        <Button type="submit" disabled={submitting}>
+        <Button
+          type="submit"
+          disabled={submitting}
+        >
           {submitting
             ? "Guardando..."
             : editing

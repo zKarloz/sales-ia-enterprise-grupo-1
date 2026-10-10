@@ -49,7 +49,11 @@ def create_product(
     _validate_category(db, data.category_id)
 
     product = Product(
-        **data.model_dump(),
+        category_id=data.category_id,
+        sku=data.sku,
+        name=data.name,
+        price=data.price,
+        stock=0,
         is_active=True,
     )
 
