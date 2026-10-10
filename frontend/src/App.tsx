@@ -26,6 +26,7 @@ import CustomersPage from "./modules/customers/CustomersPage";
 import DashboardPage from "./modules/dashboard/DashboardPage";
 import InventoryPage from "./modules/inventory/InventoryPage";
 import ProductsPage from "./modules/products/ProductsPage";
+import CategoriesPage from "./modules/categories/CategoriesPage";
 import ReportsPage from "./modules/reports/ReportsPage";
 import SalesPage from "./modules/sales/SalesPage";
 import SuppliersPage from "./modules/suppliers/SuppliersPage";
@@ -70,6 +71,10 @@ function App() {
                 <Route
                   path="/productos"
                   element={<ProductsPage />}
+                />
+                <Route
+                  path="/categorias"
+                  element={<CategoriesPage />}
                 />
                 <Route
                   path="/proveedores"

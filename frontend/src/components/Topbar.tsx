@@ -30,6 +30,7 @@ const pageTitles: Record<
   "/": "Dashboard",
   "/clientes": "Clientes",
   "/productos": "Productos",
+  "/categorias": "Categorías",
   "/proveedores": "Proveedores",
   "/ventas": "Ventas",
   "/inventario": "Inventario",

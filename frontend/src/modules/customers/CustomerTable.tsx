@@ -16,12 +16,17 @@ interface CustomerTableProps {
     id: number,
     isActive: boolean,
   ) => void | Promise<void>;
+
+  onHistory: (
+    customer: Customer,
+  ) => void | Promise<void>;
 }
 
 
 export default function CustomerTable({
   customers,
   onEdit,
+  onHistory,
   onToggleActive,
 }: CustomerTableProps) {
   if (customers.length === 0) {
@@ -48,7 +53,7 @@ export default function CustomerTable({
         <table
           className="
             w-full
-            min-w-[1150px]
+            min-w-[1280px]
             border-collapse
             text-left
           "
@@ -307,6 +312,15 @@ export default function CustomerTable({
                       }
                     >
                       Editar
+                    </Button>
+
+                    <Button
+                      variant="secondary"
+                      onClick={() =>
+                        onHistory(customer)
+                      }
+                    >
+                      Historial
                     </Button>
 
                     <Button

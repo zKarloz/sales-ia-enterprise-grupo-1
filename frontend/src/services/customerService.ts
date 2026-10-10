@@ -3,6 +3,7 @@ import { apiRequest } from "./api";
 import type {
   Customer,
   CustomerCreate,
+  CustomerHistory,
   CustomerUpdate,
 } from "../types/customer";
 
@@ -24,6 +25,15 @@ export async function getCustomerByDocument(
 ): Promise<Customer | null> {
   return apiRequest<Customer | null>(
     `/api/customers/by-document/${encodeURIComponent(documentNumber)}`,
+  );
+}
+
+
+export async function getCustomerHistory(
+  id: number,
+): Promise<CustomerHistory> {
+  return apiRequest<CustomerHistory>(
+    `/api/customers/${id}/history`,
   );
 }
 

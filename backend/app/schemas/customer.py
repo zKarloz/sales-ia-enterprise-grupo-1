@@ -1,4 +1,5 @@
 from datetime import datetime
+from decimal import Decimal
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -60,3 +61,26 @@ class CustomerResponse(BaseModel):
     created_at: datetime | None
 
     model_config = ConfigDict(from_attributes=True)
+
+class CustomerHistorySaleResponse(BaseModel):
+    """Resumen de una venta dentro del historial del cliente."""
+
+    id: int
+    total_amount: Decimal
+    payment_method: str
+    status: str | None
+    created_at: datetime | None
+    products_count: int
+
+
+class CustomerHistoryResponse(BaseModel):
+    """Historial comercial consolidado de un cliente."""
+
+    customer: CustomerResponse
+
+    sales_count: int
+    total_spent: Decimal
+    average_ticket: Decimal
+    last_purchase_at: datetime | None
+
+    sales: list[CustomerHistorySaleResponse]

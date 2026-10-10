@@ -23,6 +23,7 @@ import {
 
 import {
   createCustomer,
+  getCustomerHistory,
   setCustomerActive,
   updateCustomer,
 } from "../../services/customerService";
@@ -31,10 +32,12 @@ import type {
   Customer,
   CustomerCreate,
   CustomerDocumentType,
+  CustomerHistory,
 } from "../../types/customer";
 
 import CustomerForm from "./CustomerForm";
 import CustomerTable from "./CustomerTable";
+import CustomerHistoryPanel from "./CustomerHistoryPanel";
 
 
 const controlClasses = `
@@ -88,11 +91,24 @@ export default function CustomersPage() {
     useState("all");
 
   const [saving, setSaving] = useState(false);
+
   const [actionError, setActionError] =
     useState<string | null>(null);
+
   const [successMessage, setSuccessMessage] =
     useState<string | null>(null);
 
+  const [
+    customerHistory,
+    setCustomerHistory,
+  ] = useState<CustomerHistory | null>(
+    null,
+  );
+
+  const [
+    historyLoading,
+    setHistoryLoading,
+  ] = useState(false);
 
   const queryParams = useMemo(
     () => new URLSearchParams(location.search),
@@ -183,6 +199,7 @@ export default function CustomersPage() {
 
 
   function openCreateForm() {
+    setCustomerHistory(null);
     setEditingCustomer(null);
     setActionError(null);
     setSuccessMessage(null);
@@ -193,6 +210,7 @@ export default function CustomersPage() {
   function openEditForm(
     customer: Customer,
   ) {
+    setCustomerHistory(null);
     setEditingCustomer(customer);
     setActionError(null);
     setSuccessMessage(null);
@@ -302,6 +320,37 @@ export default function CustomersPage() {
     }
   }
 
+  async function openCustomerHistory(
+    customer: Customer,
+  ) {
+    try {
+      setShowForm(false);
+      setEditingCustomer(null);
+      setHistoryLoading(true);
+      setActionError(null);
+      setSuccessMessage(null);
+
+      const history =
+        await getCustomerHistory(
+          customer.id,
+        );
+
+      setCustomerHistory(history);
+    } catch (error) {
+      setActionError(
+        error instanceof Error
+          ? error.message
+          : "No se pudo cargar el historial del cliente.",
+      );
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
+
+
+  function closeCustomerHistory() {
+    setCustomerHistory(null);
+  }
 
   return (
     <section className="w-full space-y-6">
@@ -342,6 +391,18 @@ export default function CustomersPage() {
         />
       )}
 
+      {historyLoading && (
+        <LoadingState message="Cargando historial del cliente..." />
+      )}
+
+      {!historyLoading &&
+        customerHistory && (
+          <CustomerHistoryPanel
+            history={customerHistory}
+            onClose={closeCustomerHistory}
+          />
+        )}
+
       <Card
         title="Clientes registrados"
         subtitle="Busca por documento o información comercial y administra su estado."
@@ -371,7 +432,8 @@ export default function CustomersPage() {
 
             <input
               type="search"
-              placeholder="Buscar por nombre, documento, correo, teléfono o dirección..." value={search}
+              placeholder="Buscar por nombre, documento, correo, teléfono o dirección..."
+              value={search}
               onChange={(event) =>
                 setSearch(event.target.value)
               }
@@ -431,6 +493,7 @@ export default function CustomersPage() {
             <CustomerTable
               customers={filteredCustomers}
               onEdit={openEditForm}
+              onHistory={openCustomerHistory}
               onToggleActive={handleToggleCustomer}
             />
           )}

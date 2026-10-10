@@ -1,9 +1,20 @@
-from sqlalchemy import select
+from decimal import Decimal
+
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.customer import Customer
-from app.schemas.customer import CustomerCreate, CustomerUpdate
+from app.models.sale import Sale
+from app.models.sale_detail import SaleDetail
+
+from app.schemas.customer import (
+    CustomerCreate,
+    CustomerHistoryResponse,
+    CustomerHistorySaleResponse,
+    CustomerResponse,
+    CustomerUpdate,
+)
 
 
 _ALLOWED_DOCUMENT_TYPES = {
@@ -242,3 +253,84 @@ def set_customer_active(
     db.refresh(customer)
 
     return customer
+
+def get_customer_history(
+    db: Session,
+    customer: Customer,
+) -> CustomerHistoryResponse:
+    """Construye el historial comercial de un cliente."""
+
+    rows = db.execute(
+        select(
+            Sale,
+            func.coalesce(
+                func.sum(SaleDetail.quantity),
+                0,
+            ).label("products_count"),
+        )
+        .outerjoin(
+            SaleDetail,
+            SaleDetail.sale_id == Sale.id,
+        )
+        .where(
+            Sale.customer_id == customer.id,
+        )
+        .group_by(Sale.id)
+        .order_by(
+            Sale.created_at.desc(),
+            Sale.id.desc(),
+        )
+    ).all()
+
+    history_sales: list[
+        CustomerHistorySaleResponse
+    ] = []
+
+    total_spent = Decimal("0")
+
+    for sale, products_count in rows:
+        amount = (
+            sale.total_amount
+            if sale.total_amount is not None
+            else Decimal("0")
+        )
+
+        total_spent += amount
+
+        history_sales.append(
+            CustomerHistorySaleResponse(
+                id=sale.id,
+                total_amount=amount,
+                payment_method=sale.payment_method,
+                status=sale.status,
+                created_at=sale.created_at,
+                products_count=int(
+                    products_count or 0
+                ),
+            )
+        )
+
+    sales_count = len(history_sales)
+
+    average_ticket = (
+        total_spent / Decimal(sales_count)
+        if sales_count > 0
+        else Decimal("0")
+    )
+
+    last_purchase_at = (
+        history_sales[0].created_at
+        if history_sales
+        else None
+    )
+
+    return CustomerHistoryResponse(
+        customer=CustomerResponse.model_validate(
+            customer,
+        ),
+        sales_count=sales_count,
+        total_spent=total_spent,
+        average_ticket=average_ticket,
+        last_purchase_at=last_purchase_at,
+        sales=history_sales,
+    )
