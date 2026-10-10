@@ -7,6 +7,7 @@ from app.core.roles import ROLE_SELLER
 from app.schemas.auth import CurrentUserResponse
 from app.schemas.customer import (
     CustomerCreate,
+    CustomerHistoryResponse,
     CustomerResponse,
     CustomerStatusUpdate,
     CustomerUpdate,
@@ -15,6 +16,7 @@ from app.services.customer_service import (
     create_customer,
     get_customer,
     get_customer_by_document,
+    get_customer_history,
     list_customers,
     set_customer_active,
     update_customer,
@@ -62,6 +64,36 @@ def get_customer_by_document_number(
     return get_customer_by_document(
         db,
         document_number,
+    )
+
+
+@router.get(
+    "/{customer_id}/history",
+    response_model=CustomerHistoryResponse,
+)
+def get_customer_history_by_id(
+    customer_id: int,
+    db: Session = Depends(get_db),
+    current_user: CurrentUserResponse = Depends(
+        require_roles(ROLE_SELLER),
+    ),
+):
+    """Obtiene el historial comercial de un cliente."""
+
+    customer = get_customer(
+        db,
+        customer_id,
+    )
+
+    if customer is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Cliente no encontrado.",
+        )
+
+    return get_customer_history(
+        db,
+        customer,
     )
 
 

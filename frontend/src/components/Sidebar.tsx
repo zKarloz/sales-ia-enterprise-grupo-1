@@ -37,6 +37,11 @@ const menuItems: MenuItem[] = [
     roles: [ROLE_ADMIN, ROLE_WAREHOUSE],
   },
   {
+    label: "Categorías",
+    path: "/categorias",
+    roles: [ROLE_ADMIN, ROLE_WAREHOUSE],
+  },
+  {
     label: "Proveedores",
     path: "/proveedores",
     roles: [ROLE_ADMIN, ROLE_WAREHOUSE],

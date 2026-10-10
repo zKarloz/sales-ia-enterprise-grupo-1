@@ -39,3 +39,24 @@ export interface CustomerUpdate {
   phone?: string | null;
   address?: string | null;
 }
+
+export interface CustomerHistorySale {
+  id: number;
+  total_amount: string;
+  payment_method: string;
+  status: string | null;
+  created_at: string | null;
+  products_count: number;
+}
+
+
+export interface CustomerHistory {
+  customer: Customer;
+
+  sales_count: number;
+  total_spent: string;
+  average_ticket: string;
+  last_purchase_at: string | null;
+
+  sales: CustomerHistorySale[];
+}
