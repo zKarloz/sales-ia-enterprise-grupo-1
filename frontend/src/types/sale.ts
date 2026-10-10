@@ -8,6 +8,7 @@ export interface SaleItemCreate {
 export interface SaleCreate {
   customer_id: number;
   payment_method: string;
+  discount_percentage: number;
   items: SaleItemCreate[];
 }
 
@@ -25,9 +26,17 @@ export interface Sale {
   id: number;
   customer_id: number;
   seller_id: number;
+
+  subtotal_amount: string;
+  discount_percentage: string;
+  discount_amount: string;
+  tax_percentage: string;
+  tax_amount: string;
   total_amount: string;
+
   payment_method: string;
   status: string | null;
   created_at: string | null;
+
   items: SaleDetail[];
 }

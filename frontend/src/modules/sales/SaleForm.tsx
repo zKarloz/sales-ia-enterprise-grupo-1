@@ -113,6 +113,7 @@ export default function SaleForm({
   const [lookupLoading, setLookupLoading] = useState(false);
 
   const [paymentMethod, setPaymentMethod] = useState("EFECTIVO");
+  const [discountPercentage, setDiscountPercentage] = useState("0");
 
   const [items, setItems] = useState<FormItem[]>([
     {
@@ -171,17 +172,15 @@ export default function SaleForm({
   );
 
 
-  const estimatedTotal = useMemo(
+  const estimatedSubtotal = useMemo(
     () =>
       items.reduce(
         (total, item) => {
-          const product =
-            productMap.get(
-              Number(item.product_id),
-            );
+          const product = productMap.get(
+            Number(item.product_id),
+          );
 
-          const quantity =
-            Number(item.quantity);
+          const quantity = Number(item.quantity);
 
           if (
             !product ||
@@ -193,8 +192,7 @@ export default function SaleForm({
 
           return (
             total +
-            Number(product.price) *
-            quantity
+            Number(product.price) * quantity
           );
         },
         0,
@@ -204,6 +202,39 @@ export default function SaleForm({
       productMap,
     ],
   );
+
+  const numericDiscountPercentage =
+    Number(discountPercentage);
+
+  const validDiscountPercentage =
+    Number.isFinite(numericDiscountPercentage) &&
+      numericDiscountPercentage >= 0 &&
+      numericDiscountPercentage <= 100
+      ? numericDiscountPercentage
+      : 0;
+
+  const estimatedDiscountAmount =
+    estimatedSubtotal *
+    validDiscountPercentage /
+    100;
+
+  const estimatedTaxBase =
+    Math.max(
+      estimatedSubtotal -
+      estimatedDiscountAmount,
+      0,
+    );
+
+  const estimatedTaxPercentage = 18;
+
+  const estimatedTaxAmount =
+    estimatedTaxBase *
+    estimatedTaxPercentage /
+    100;
+
+  const estimatedTotal =
+    estimatedTaxBase +
+    estimatedTaxAmount;
 
 
   function normalizeDocumentNumber(
@@ -385,6 +416,17 @@ export default function SaleForm({
   ) {
     event.preventDefault();
 
+    const parsedDiscountPercentage =
+      Number(discountPercentage);
+
+    if (
+      !Number.isFinite(parsedDiscountPercentage) ||
+      parsedDiscountPercentage < 0 ||
+      parsedDiscountPercentage > 100
+    ) {
+      return;
+    }
+
     if (
       !customerId ||
       !paymentMethod ||
@@ -393,14 +435,10 @@ export default function SaleForm({
       return;
     }
 
-    const parsedItems:
-      SaleItemCreate[] =
+    const parsedItems: SaleItemCreate[] =
       items.map((item) => ({
-        product_id:
-          Number(item.product_id),
-
-        quantity:
-          Number(item.quantity),
+        product_id: Number(item.product_id),
+        quantity: Number(item.quantity),
       }));
 
     const validItems =
@@ -415,14 +453,11 @@ export default function SaleForm({
     }
 
     await onSubmit({
-      customer_id:
-        Number(customerId),
-
-      payment_method:
-        paymentMethod,
-
-      items:
-        parsedItems,
+      customer_id: Number(customerId),
+      payment_method: paymentMethod,
+      discount_percentage:
+        parsedDiscountPercentage,
+      items: parsedItems,
     });
   }
 
@@ -701,6 +736,34 @@ export default function SaleForm({
               <option value="PLIN">Plin</option>
             </select>
           </div>
+          <div>
+            <label
+              htmlFor="sale-discount"
+              className={labelClasses}
+            >
+              Descuento (%)
+            </label>
+
+            <input
+              id="sale-discount"
+              type="number"
+              min="0"
+              max="100"
+              step="0.01"
+              value={discountPercentage}
+              onChange={(event) =>
+                setDiscountPercentage(
+                  event.target.value,
+                )
+              }
+              disabled={submitting}
+              className={controlClasses}
+            />
+
+            <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+              El descuento se aplica sobre el subtotal antes del IGV.
+            </p>
+          </div>
         </div>
 
         <div>
@@ -915,44 +978,98 @@ export default function SaleForm({
 
         <div
           className="
-            flex
-            flex-col
-            gap-2
-            rounded-2xl
-            border
-            border-cyan-200
-            bg-cyan-50
-            p-4
-            sm:flex-row
-            sm:items-center
-            sm:justify-between
-            dark:border-cyan-900/60
-            dark:bg-cyan-950/20
-          "
+    rounded-2xl
+    border
+    border-cyan-200
+    bg-cyan-50
+    p-5
+    dark:border-cyan-900/60
+    dark:bg-cyan-950/20
+  "
         >
-          <div>
+          <div className="mb-4">
             <p className="text-xs font-bold uppercase tracking-[0.1em] text-cyan-700 dark:text-cyan-400">
-              Total estimado
+              Resumen comercial estimado
             </p>
 
             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              El monto definitivo se calcula y valida en el servidor.
+              Los importes definitivos se recalculan y validan en el servidor.
             </p>
           </div>
 
-          <p className="text-2xl font-bold tracking-tight text-slate-950 dark:text-white">
-            S/{" "}
-            {estimatedTotal.toLocaleString(
-              "es-PE",
-              {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              },
-            )}
-          </p>
+          <div className="space-y-3 text-sm">
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-slate-600 dark:text-slate-300">
+                Subtotal
+              </span>
+
+              <span className="font-semibold text-slate-900 dark:text-slate-100">
+                S/{" "}
+                {estimatedSubtotal.toLocaleString(
+                  "es-PE",
+                  {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  },
+                )}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-slate-600 dark:text-slate-300">
+                Descuento ({validDiscountPercentage.toFixed(2)}%)
+              </span>
+
+              <span className="font-semibold text-slate-900 dark:text-slate-100">
+                - S/{" "}
+                {estimatedDiscountAmount.toLocaleString(
+                  "es-PE",
+                  {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  },
+                )}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-slate-600 dark:text-slate-300">
+                IGV ({estimatedTaxPercentage}%)
+              </span>
+
+              <span className="font-semibold text-slate-900 dark:text-slate-100">
+                + S/{" "}
+                {estimatedTaxAmount.toLocaleString(
+                  "es-PE",
+                  {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  },
+                )}
+              </span>
+            </div>
+
+            <div className="border-t border-cyan-200 pt-3 dark:border-cyan-900/60">
+              <div className="flex items-center justify-between gap-4">
+                <span className="font-bold text-slate-950 dark:text-white">
+                  Total estimado
+                </span>
+
+                <span className="text-2xl font-bold tracking-tight text-slate-950 dark:text-white">
+                  S/{" "}
+                  {estimatedTotal.toLocaleString(
+                    "es-PE",
+                    {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    },
+                  )}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-
       <footer
         className="
           flex

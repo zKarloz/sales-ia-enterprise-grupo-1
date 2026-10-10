@@ -1,7 +1,14 @@
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import DateTime, ForeignKey, Numeric, String, text
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Numeric,
+    String,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -12,21 +19,80 @@ class Sale(Base):
 
     __tablename__ = "sales"
 
+    __table_args__ = (
+        CheckConstraint(
+            "subtotal_amount >= 0",
+            name="sales_subtotal_amount_check",
+        ),
+        CheckConstraint(
+            "discount_percentage >= 0 AND discount_percentage <= 100",
+            name="sales_discount_percentage_check",
+        ),
+        CheckConstraint(
+            "discount_amount >= 0",
+            name="sales_discount_amount_check",
+        ),
+        CheckConstraint(
+            "tax_percentage >= 0 AND tax_percentage <= 100",
+            name="sales_tax_percentage_check",
+        ),
+        CheckConstraint(
+            "tax_amount >= 0",
+            name="sales_tax_amount_check",
+        ),
+        CheckConstraint(
+            "total_amount >= 0",
+            name="sales_total_amount_check",
+        ),
+    )
+
     id: Mapped[int] = mapped_column(primary_key=True)
 
-    # Cliente asociado a la venta.
     customer_id: Mapped[int] = mapped_column(
-        ForeignKey("customers.id", ondelete="RESTRICT"),
+        ForeignKey(
+            "customers.id",
+            ondelete="RESTRICT",
+        ),
         nullable=False,
     )
 
-    # Usuario que registró la venta.
     seller_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="RESTRICT"),
+        ForeignKey(
+            "users.id",
+            ondelete="RESTRICT",
+        ),
         nullable=False,
     )
 
-    # Total definitivo calculado por el backend.
+    subtotal_amount: Mapped[Decimal] = mapped_column(
+        Numeric(12, 2),
+        nullable=False,
+    )
+
+    discount_percentage: Mapped[Decimal] = mapped_column(
+        Numeric(5, 2),
+        nullable=False,
+        server_default=text("0"),
+    )
+
+    discount_amount: Mapped[Decimal] = mapped_column(
+        Numeric(12, 2),
+        nullable=False,
+        server_default=text("0"),
+    )
+
+    tax_percentage: Mapped[Decimal] = mapped_column(
+        Numeric(5, 2),
+        nullable=False,
+        server_default=text("18"),
+    )
+
+    tax_amount: Mapped[Decimal] = mapped_column(
+        Numeric(12, 2),
+        nullable=False,
+        server_default=text("0"),
+    )
+
     total_amount: Mapped[Decimal] = mapped_column(
         Numeric(12, 2),
         nullable=False,
