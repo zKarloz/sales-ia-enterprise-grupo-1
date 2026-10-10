@@ -60,7 +60,7 @@ export default function SaleTable({
         <table
           className="
             w-full
-            min-w-[1550px]
+            min-w-[1750px]
             border-collapse
             text-left
           "
@@ -80,6 +80,8 @@ export default function SaleTable({
                 "Fecha",
                 "Productos",
                 "Pago",
+                "Referencia",
+                "Estado pago",
                 "Subtotal",
                 "Descuento",
                 "IGV",
@@ -326,7 +328,43 @@ export default function SaleTable({
                         dark:text-slate-300
                       "
                     >
-                      {sale.payment_method}
+                      {sale.payment?.method ?? sale.payment_method}
+                    </td>
+
+                    <td
+                      className="
+                        px-4
+                        py-4
+                        text-sm
+                        text-slate-600
+                        dark:text-slate-300
+                      "
+                    >
+                      {sale.payment?.reference ?? "—"}
+                    </td>
+
+                    <td
+                      className="
+                        px-4
+                        py-4
+                      "
+                    >
+                      <StatusBadge
+                        status={
+                          sale.payment?.status === "PAID"
+                            ? "active"
+                            : sale.payment?.status === "PENDING"
+                              ? "pending"
+                              : "error"
+                        }
+                        label={
+                          sale.payment?.status === "PAID"
+                            ? "Pagado"
+                            : sale.payment?.status === "PENDING"
+                              ? "Pendiente"
+                              : sale.payment?.status ?? "Sin pago"
+                        }
+                      />
                     </td>
 
                     <td

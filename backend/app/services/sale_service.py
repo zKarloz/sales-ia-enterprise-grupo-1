@@ -11,7 +11,10 @@ from app.models.product import Product
 from app.models.sale import Sale
 from app.models.sale_detail import SaleDetail
 from app.models.user import User
+from app.models.payment import Payment
+
 from app.schemas.sale import SaleCreate
+from app.services.payment_service import create_payment_record
 
 
 MONEY_QUANT = Decimal("0.01")
@@ -56,10 +59,23 @@ def list_sales(db: Session) -> list[dict]:
     for detail in details:
         details_by_sale[detail.sale_id].append(detail)
 
+    payments = list(
+        db.scalars(
+            select(Payment)
+            .where(Payment.sale_id.in_(sale_ids))
+        ).all()
+    )
+
+    payments_by_sale = {
+        payment.sale_id: payment
+        for payment in payments
+    }
+
     return [
         _build_sale_response(
             sale,
             details_by_sale[sale.id],
+            payments_by_sale.get(sale.id),
         )
         for sale in sales
     ]
@@ -84,9 +100,15 @@ def get_sale(
         ).all()
     )
 
+    payment = db.scalar(
+        select(Payment)
+        .where(Payment.sale_id == sale_id)
+    )
+
     return _build_sale_response(
         sale,
         details,
+        payment,
     )
 
 
@@ -229,6 +251,15 @@ def create_sale(
         # Obtenemos el ID sin confirmar todavía la transacción.
         db.flush()
 
+        payment = create_payment_record(
+            db,
+            sale_id=sale.id,
+            user_id=seller_id,
+            method=data.payment_method,
+            amount=total_amount,
+            reference=data.payment_reference,
+        )
+
         details: list[SaleDetail] = []
 
         for (
@@ -290,16 +321,36 @@ def create_sale(
                     total_amount
                 ),
                 "items": len(details),
+                "payment_id": payment.id,
+                "payment_method": payment.method,
+                "payment_reference": payment.reference,
             },
         )
 
         db.add(audit)
+
+        payment_audit = AuditLog(
+            user_id=seller_id,
+            action="REGISTER_PAYMENT",
+            table_name="payments",
+            record_id=payment.id,
+            details={
+                "sale_id": sale.id,
+                "method": payment.method,
+                "amount": str(payment.amount),
+                "status": payment.status,
+                "reference": payment.reference,
+            },
+        )
+
+        db.add(payment_audit)
 
         # Venta, detalle, stock, Kardex y auditoría
         # quedan confirmados en una sola transacción.
         db.commit()
 
         db.refresh(sale)
+        db.refresh(payment)
 
         for detail in details:
             db.refresh(detail)
@@ -307,6 +358,7 @@ def create_sale(
         return _build_sale_response(
             sale,
             details,
+            payment,
         )
 
     except (LookupError, ValueError):
@@ -321,6 +373,7 @@ def create_sale(
 def _build_sale_response(
     sale: Sale,
     details: list[SaleDetail],
+    payment: Payment | None,
 ) -> dict:
     """Construye la respuesta completa de una venta."""
 
@@ -335,6 +388,7 @@ def _build_sale_response(
         "tax_amount": sale.tax_amount,
         "total_amount": sale.total_amount,
         "payment_method": sale.payment_method,
+        "payment": payment,
         "status": sale.status,
         "created_at": sale.created_at,
         "items": details,

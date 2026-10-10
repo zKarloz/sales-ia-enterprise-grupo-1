@@ -1,3 +1,5 @@
+import type { Payment } from "./payment";
+
 // Producto enviado al registrar una venta.
 export interface SaleItemCreate {
   product_id: number;
@@ -8,6 +10,7 @@ export interface SaleItemCreate {
 export interface SaleCreate {
   customer_id: number;
   payment_method: string;
+  payment_reference?: string | null;
   discount_percentage: number;
   items: SaleItemCreate[];
 }
@@ -35,6 +38,7 @@ export interface Sale {
   total_amount: string;
 
   payment_method: string;
+  payment: Payment | null;
   status: string | null;
   created_at: string | null;
 

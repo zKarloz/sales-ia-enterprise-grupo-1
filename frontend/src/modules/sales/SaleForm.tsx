@@ -113,6 +113,7 @@ export default function SaleForm({
   const [lookupLoading, setLookupLoading] = useState(false);
 
   const [paymentMethod, setPaymentMethod] = useState("EFECTIVO");
+  const [paymentReference, setPaymentReference] = useState("");
   const [discountPercentage, setDiscountPercentage] = useState("0");
 
   const [items, setItems] = useState<FormItem[]>([
@@ -455,6 +456,8 @@ export default function SaleForm({
     await onSubmit({
       customer_id: Number(customerId),
       payment_method: paymentMethod,
+      payment_reference:
+        paymentReference.trim() || null,
       discount_percentage:
         parsedDiscountPercentage,
       items: parsedItems,
@@ -723,9 +726,15 @@ export default function SaleForm({
             <select
               id="sale-payment"
               value={paymentMethod}
-              onChange={(event) =>
-                setPaymentMethod(event.target.value)
-              }
+              onChange={(event) => {
+                const nextMethod = event.target.value;
+
+                setPaymentMethod(nextMethod);
+
+                if (nextMethod === "EFECTIVO") {
+                  setPaymentReference("");
+                }
+              }}
               disabled={submitting}
               className={controlClasses}
             >
@@ -762,6 +771,38 @@ export default function SaleForm({
 
             <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
               El descuento se aplica sobre el subtotal antes del IGV.
+            </p>
+          </div>
+
+          <div className="md:col-span-2">
+            <label
+              htmlFor="sale-payment-reference"
+              className={labelClasses}
+            >
+              Referencia de pago
+            </label>
+
+            <input
+              id="sale-payment-reference"
+              value={paymentReference}
+              onChange={(event) =>
+                setPaymentReference(event.target.value)
+              }
+              maxLength={120}
+              placeholder={
+                paymentMethod === "EFECTIVO"
+                  ? "No requerida para efectivo"
+                  : "Ej. operación, voucher o referencia"
+              }
+              disabled={
+                submitting ||
+                paymentMethod === "EFECTIVO"
+              }
+              className={controlClasses}
+            />
+
+            <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+              Opcional. No ingreses números completos de tarjeta ni información bancaria sensible.
             </p>
           </div>
         </div>

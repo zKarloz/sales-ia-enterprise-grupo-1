@@ -1,5 +1,8 @@
 from datetime import datetime
 from decimal import Decimal
+from typing import Literal
+
+from app.schemas.payment import PaymentResponse
 
 from pydantic import (
     BaseModel,
@@ -16,14 +19,25 @@ class SaleItemCreate(BaseModel):
     quantity: int = Field(gt=0)
 
 
+PaymentMethod = Literal[
+    "EFECTIVO",
+    "TARJETA",
+    "TRANSFERENCIA",
+    "YAPE",
+    "PLIN",
+]
+
+
 class SaleCreate(BaseModel):
     """Datos requeridos para registrar una venta."""
 
     customer_id: int = Field(gt=0)
 
-    payment_method: str = Field(
-        min_length=1,
-        max_length=50,
+    payment_method: PaymentMethod
+
+    payment_reference: str | None = Field(
+        default=None,
+        max_length=120,
     )
 
     discount_percentage: Decimal = Field(
@@ -83,6 +97,8 @@ class SaleResponse(BaseModel):
     total_amount: Decimal
 
     payment_method: str
+    payment: PaymentResponse | None
+
     status: str | None
     created_at: datetime | None
 
