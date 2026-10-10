@@ -60,7 +60,7 @@ export default function SaleTable({
         <table
           className="
             w-full
-            min-w-[1200px]
+            min-w-[1750px]
             border-collapse
             text-left
           "
@@ -80,6 +80,11 @@ export default function SaleTable({
                 "Fecha",
                 "Productos",
                 "Pago",
+                "Referencia",
+                "Estado pago",
+                "Subtotal",
+                "Descuento",
+                "IGV",
                 "Total",
                 "Estado",
               ].map(
@@ -323,7 +328,128 @@ export default function SaleTable({
                         dark:text-slate-300
                       "
                     >
-                      {sale.payment_method}
+                      {sale.payment?.method ?? sale.payment_method}
+                    </td>
+
+                    <td
+                      className="
+                        px-4
+                        py-4
+                        text-sm
+                        text-slate-600
+                        dark:text-slate-300
+                      "
+                    >
+                      {sale.payment?.reference ?? "—"}
+                    </td>
+
+                    <td
+                      className="
+                        px-4
+                        py-4
+                      "
+                    >
+                      <StatusBadge
+                        status={
+                          sale.payment?.status === "PAID"
+                            ? "active"
+                            : sale.payment?.status === "PENDING"
+                              ? "pending"
+                              : "error"
+                        }
+                        label={
+                          sale.payment?.status === "PAID"
+                            ? "Pagado"
+                            : sale.payment?.status === "PENDING"
+                              ? "Pendiente"
+                              : sale.payment?.status ?? "Sin pago"
+                        }
+                      />
+                    </td>
+
+                    <td
+                      className="
+                        whitespace-nowrap
+                        px-4
+                        py-4
+                        text-sm
+                        font-semibold
+                        text-slate-700
+                        dark:text-slate-200
+                      "
+                    >
+                      S/{" "}
+                      {Number(
+                        sale.subtotal_amount,
+                      ).toLocaleString(
+                        "es-PE",
+                        {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        },
+                      )}
+                    </td>
+
+                    <td
+                      className="
+                        whitespace-nowrap
+                        px-4
+                        py-4
+                        text-sm
+                        text-slate-600
+                        dark:text-slate-300
+                      "
+                    >
+                      <p className="font-semibold">
+                        {Number(
+                          sale.discount_percentage,
+                        ).toFixed(2)}
+                        %
+                      </p>
+
+                      <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">
+                        - S/{" "}
+                        {Number(
+                          sale.discount_amount,
+                        ).toLocaleString(
+                          "es-PE",
+                          {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          },
+                        )}
+                      </p>
+                    </td>
+
+                    <td
+                      className="
+                        whitespace-nowrap
+                        px-4
+                        py-4
+                        text-sm
+                        text-slate-600
+                        dark:text-slate-300
+                      "
+                    >
+                      <p className="font-semibold">
+                        {Number(
+                          sale.tax_percentage,
+                        ).toFixed(2)}
+                        %
+                      </p>
+
+                      <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">
+                        + S/{" "}
+                        {Number(
+                          sale.tax_amount,
+                        ).toLocaleString(
+                          "es-PE",
+                          {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          },
+                        )}
+                      </p>
                     </td>
 
                     <td

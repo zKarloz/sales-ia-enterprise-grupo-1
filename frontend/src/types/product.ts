@@ -16,7 +16,6 @@ export interface ProductCreate {
   sku: string;
   name: string;
   price: number;
-  stock: number;
 }
 
 // Campos permitidos al actualizar un producto.
@@ -25,5 +24,4 @@ export interface ProductUpdate {
   sku?: string;
   name?: string;
   price?: number;
-  stock?: number;
 }

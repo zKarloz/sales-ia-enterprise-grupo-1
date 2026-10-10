@@ -6,8 +6,10 @@ from app.models.user import User
 from app.models.customer import Customer
 from app.models.category import Category
 from app.models.product import Product
+from app.models.supplier import Supplier
 from app.models.sale import Sale
 from app.models.sale_detail import SaleDetail
+from app.models.payment import Payment
 from app.models.inventory import InventoryMovement
 
 # Modelos de Analytics y auditoría.
@@ -23,8 +25,10 @@ __all__ = [
     "Customer",
     "Category",
     "Product",
+    "Supplier",
     "Sale",
     "SaleDetail",
+    "Payment",
     "InventoryMovement",
     "Dataset",
     "StatisticalAnalysis",

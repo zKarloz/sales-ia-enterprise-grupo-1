@@ -11,16 +11,23 @@ class ProductCreate(BaseModel):
     sku: str
     name: str
     price: Decimal = Field(ge=0)
-    stock: int = Field(default=0, ge=0)
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
 
 
 class ProductUpdate(BaseModel):
-    """Campos editables de un producto."""
+    """Campos comerciales editables de un producto."""
 
     category_id: int | None = Field(default=None, gt=0)
     sku: str | None = None
     name: str | None = None
     price: Decimal | None = Field(default=None, ge=0)
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
 
 
 class ProductStatusUpdate(BaseModel):

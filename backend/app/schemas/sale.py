@@ -1,7 +1,15 @@
 from datetime import datetime
 from decimal import Decimal
+from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from app.schemas.payment import PaymentResponse
+
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    model_validator,
+)
 
 
 class SaleItemCreate(BaseModel):
@@ -11,12 +19,37 @@ class SaleItemCreate(BaseModel):
     quantity: int = Field(gt=0)
 
 
+PaymentMethod = Literal[
+    "EFECTIVO",
+    "TARJETA",
+    "TRANSFERENCIA",
+    "YAPE",
+    "PLIN",
+]
+
+
 class SaleCreate(BaseModel):
     """Datos requeridos para registrar una venta."""
 
     customer_id: int = Field(gt=0)
-    payment_method: str
-    items: list[SaleItemCreate] = Field(min_length=1)
+
+    payment_method: PaymentMethod
+
+    payment_reference: str | None = Field(
+        default=None,
+        max_length=120,
+    )
+
+    discount_percentage: Decimal = Field(
+        default=Decimal("0.00"),
+        ge=0,
+        le=100,
+        decimal_places=2,
+    )
+
+    items: list[SaleItemCreate] = Field(
+        min_length=1,
+    )
 
     @model_validator(mode="after")
     def validate_unique_products(self):
@@ -44,7 +77,9 @@ class SaleDetailResponse(BaseModel):
     unit_price: Decimal
     subtotal: Decimal
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+    )
 
 
 class SaleResponse(BaseModel):
@@ -53,8 +88,18 @@ class SaleResponse(BaseModel):
     id: int
     customer_id: int
     seller_id: int
+
+    subtotal_amount: Decimal
+    discount_percentage: Decimal
+    discount_amount: Decimal
+    tax_percentage: Decimal
+    tax_amount: Decimal
     total_amount: Decimal
+
     payment_method: str
+    payment: PaymentResponse | None
+
     status: str | None
     created_at: datetime | None
+
     items: list[SaleDetailResponse]

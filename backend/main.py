@@ -5,7 +5,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from app.api.routes import analyses, auth, categories, customers, datasets, insights, inventory, probability, products, sales, statistics, suppliers, users
+from app.api.routes import analyses, auth, categories, customers, datasets, insights, inventory, payments, probability, products, sales, statistics, suppliers, users
 from app.core.config import settings
 from app.core.database import engine, get_db
 from app.statistics.analytics import calculate_statistics, get_analytics_filters
@@ -33,6 +33,7 @@ app.include_router(customers.router, prefix="/api")
 app.include_router(products.router, prefix="/api")
 app.include_router(suppliers.router, prefix="/api")
 app.include_router(sales.router, prefix="/api")
+app.include_router(payments.router, prefix="/api")
 
 app.include_router(inventory.router, prefix="/api")
 app.include_router(users.router, prefix="/api")
