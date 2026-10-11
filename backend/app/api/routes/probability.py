@@ -1,4 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    status,
+)
 from sqlalchemy.orm import Session
 
 from app.api.dependencies.roles import require_roles
@@ -6,10 +11,18 @@ from app.api.dependencies.roles import require_roles
 from app.core.database import get_db
 from app.core.roles import ROLE_ANALYST
 
-from app.schemas.probability import BayesRequest, BayesResponse, ProbabilityRequest, ProbabilityResponse
 from app.schemas.auth import CurrentUserResponse
+from app.schemas.probability import (
+    BayesRequest,
+    BayesResponse,
+    ProbabilityRequest,
+    ProbabilityResponse,
+)
 
-from app.services.probability_service import calculate_bayes, calculate_probability
+from app.services.probability_service import (
+    calculate_bayes,
+    calculate_probability,
+)
 
 
 router = APIRouter(
@@ -24,21 +37,28 @@ router = APIRouter(
 )
 def post_probability(
     data: ProbabilityRequest,
+    db: Session = Depends(get_db),
     current_user: CurrentUserResponse = Depends(
         require_roles(ROLE_ANALYST),
     ),
 ):
-    """Calcula una probabilidad simple."""
+    """Calcula una probabilidad empírica desde una variable aleatoria."""
 
     try:
-        result = calculate_probability(
-            data.favorable,
-            data.total,
+        return calculate_probability(
+            db=db,
+            random_variable_id=(
+                data.random_variable_id
+            ),
+            event_value=data.event_value,
+            user_id=current_user.id,
         )
 
-        return {
-            "probability": result,
-        }
+    except LookupError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
 
     except ValueError as exc:
         raise HTTPException(
@@ -58,13 +78,23 @@ def post_bayes(
         require_roles(ROLE_ANALYST),
     ),
 ):
-    """Calcula Bayes y almacena el análisis."""
+    """Calcula y persiste un análisis mediante Teorema de Bayes."""
 
     try:
-        return calculate_bayes(db, data)
+        return calculate_bayes(
+            db=db,
+            data=data,
+            user_id=current_user.id,
+        )
 
     except LookupError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=str(exc),
         ) from exc
