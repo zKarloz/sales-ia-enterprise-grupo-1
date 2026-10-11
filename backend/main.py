@@ -5,12 +5,32 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from app.api.routes import analyses, auth, categories, customers, datasets, insights, inventory, payments, probability, products, sales, statistics, suppliers, users
+from app.api.dependencies.auth import get_current_user
+from app.api.routes import (
+    analyses,
+    auth,
+    categories,
+    customers,
+    datasets,
+    insights,
+    inventory,
+    payments,
+    probability,
+    products,
+    random_variables,
+    sales,
+    statistics,
+    suppliers,
+    users,
+)
 from app.core.config import settings
 from app.core.database import engine, get_db
-from app.statistics.analytics import calculate_statistics, get_analytics_filters
-from app.api.dependencies.auth import get_current_user
 from app.schemas.auth import CurrentUserResponse
+from app.statistics.analytics import (
+    calculate_statistics,
+    get_analytics_filters,
+)
+
 
 app = FastAPI(
     title="Sales IA Enterprise API",
@@ -42,6 +62,7 @@ app.include_router(analyses.router, prefix="/api")
 app.include_router(insights.router, prefix="/api")
 
 app.include_router(statistics.router, prefix="/api")
+app.include_router(random_variables.router, prefix="/api")
 app.include_router(probability.router, prefix="/api")
 
 
