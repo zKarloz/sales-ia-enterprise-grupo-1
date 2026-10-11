@@ -66,3 +66,34 @@ class SalesDatasetCreate(BaseModel):
             )
 
         return self
+
+
+class OperationalDatasetCreate(BaseModel):
+    """Configuración para generar un dataset desde datos operacionales."""
+
+    name: str = Field(
+        min_length=1,
+        max_length=100,
+    )
+
+    description: str | None = None
+
+    date_from: datetime | None = None
+    date_to: datetime | None = None
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+
+    @model_validator(mode="after")
+    def validate_dates(self):
+        if (
+            self.date_from is not None
+            and self.date_to is not None
+            and self.date_from > self.date_to
+        ):
+            raise ValueError(
+                "date_from no puede ser posterior a date_to."
+            )
+
+        return self

@@ -14,6 +14,7 @@ from app.schemas.auth import CurrentUserResponse
 from app.schemas.dataset import (
     DatasetCreate,
     DatasetResponse,
+    OperationalDatasetCreate,
     SalesDatasetCreate,
 )
 from app.schemas.dataset_variable import (
@@ -37,6 +38,11 @@ from app.services.observation_service import (
 )
 from app.services.sales_dataset_service import (
     generate_sales_dataset,
+)
+from app.services.operational_dataset_service import (
+    generate_customers_dataset,
+    generate_inventory_dataset,
+    generate_products_dataset,
 )
 
 
@@ -77,6 +83,108 @@ def post_sales_dataset(
 
     try:
         return generate_sales_dataset(
+            db=db,
+            data=data,
+            user_id=current_user.id,
+        )
+
+    except LookupError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
+
+
+@router.post(
+    "/customers",
+    response_model=DatasetResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def post_customers_dataset(
+    data: OperationalDatasetCreate,
+    db: Session = Depends(get_db),
+    current_user: CurrentUserResponse = Depends(
+        require_roles(ROLE_ANALYST),
+    ),
+):
+    """Genera un dataset analítico desde clientes reales."""
+
+    try:
+        return generate_customers_dataset(
+            db=db,
+            data=data,
+            user_id=current_user.id,
+        )
+
+    except LookupError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
+
+
+@router.post(
+    "/products",
+    response_model=DatasetResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def post_products_dataset(
+    data: OperationalDatasetCreate,
+    db: Session = Depends(get_db),
+    current_user: CurrentUserResponse = Depends(
+        require_roles(ROLE_ANALYST),
+    ),
+):
+    """Genera un dataset analítico desde productos reales."""
+
+    try:
+        return generate_products_dataset(
+            db=db,
+            data=data,
+            user_id=current_user.id,
+        )
+
+    except LookupError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
+
+
+@router.post(
+    "/inventory",
+    response_model=DatasetResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def post_inventory_dataset(
+    data: OperationalDatasetCreate,
+    db: Session = Depends(get_db),
+    current_user: CurrentUserResponse = Depends(
+        require_roles(ROLE_ANALYST),
+    ),
+):
+    """Genera un dataset analítico desde el Kardex real."""
+
+    try:
+        return generate_inventory_dataset(
             db=db,
             data=data,
             user_id=current_user.id,
