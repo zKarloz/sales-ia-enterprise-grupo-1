@@ -10,6 +10,7 @@ import LoadingState from "../../components/LoadingState";
 import PageHeader from "../../components/PageHeader";
 
 import RandomVariablePanel from "./RandomVariablePanel";
+import BayesPanel from "./BayesPanel";
 
 import {
   getDatasets,
@@ -730,6 +731,9 @@ export default function StatisticsPage() {
 
           <RandomVariablePanel
             variable={selectedVariable}
+          />
+          <BayesPanel
+            dataset={selectedDataset}
           />
         </>
       )}
