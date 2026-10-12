@@ -11,6 +11,7 @@ import PageHeader from "../../components/PageHeader";
 
 import RandomVariablePanel from "./RandomVariablePanel";
 import BayesPanel from "./BayesPanel";
+import AnalysisHistoryPanel from "./AnalysisHistoryPanel";
 
 import {
   getDatasets,
@@ -733,6 +734,9 @@ export default function StatisticsPage() {
             variable={selectedVariable}
           />
           <BayesPanel
+            dataset={selectedDataset}
+          />
+          <AnalysisHistoryPanel
             dataset={selectedDataset}
           />
         </>
