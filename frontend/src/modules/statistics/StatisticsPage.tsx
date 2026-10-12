@@ -9,6 +9,8 @@ import ErrorState from "../../components/ErrorState";
 import LoadingState from "../../components/LoadingState";
 import PageHeader from "../../components/PageHeader";
 
+import RandomVariablePanel from "./RandomVariablePanel";
+
 import {
   getDatasets,
   getDatasetVariables,
@@ -33,21 +35,21 @@ import type {
 
 type AnalysisResult =
   | {
-      type: "CLASSIFICATION";
-      data: ClassificationResponse;
-    }
+    type: "CLASSIFICATION";
+    data: ClassificationResponse;
+  }
   | {
-      type: "MEAN";
-      data: MeanResponse;
-    }
+    type: "MEAN";
+    data: MeanResponse;
+  }
   | {
-      type: "MEDIAN";
-      data: MedianResponse;
-    }
+    type: "MEDIAN";
+    data: MedianResponse;
+  }
   | {
-      type: "COMPARE";
-      data: CompareResponse;
-    };
+    type: "COMPARE";
+    data: CompareResponse;
+  };
 
 
 type AnalysisAction =
@@ -278,12 +280,12 @@ export default function StatisticsPage() {
   const isQuantitative =
     selectedVariable !== null &&
     selectedVariable.value_type ===
-      "NUMERIC" &&
+    "NUMERIC" &&
     (
       selectedVariable.variable_type ===
-        "QUANTITATIVE_DISCRETE" ||
+      "QUANTITATIVE_DISCRETE" ||
       selectedVariable.variable_type ===
-        "QUANTITATIVE_CONTINUOUS"
+      "QUANTITATIVE_CONTINUOUS"
     );
 
 
@@ -455,10 +457,10 @@ export default function StatisticsPage() {
                   >
                     {datasets.length ===
                       0 && (
-                      <option value="">
-                        No hay datasets
-                      </option>
-                    )}
+                        <option value="">
+                          No hay datasets
+                        </option>
+                      )}
 
                     {datasets.map(
                       (dataset) => (
@@ -539,8 +541,8 @@ export default function StatisticsPage() {
                         setSelectedVariableId(
                           value
                             ? Number(
-                                value,
-                              )
+                              value,
+                            )
                             : "",
                         );
 
@@ -725,6 +727,10 @@ export default function StatisticsPage() {
               result={result}
             />
           )}
+
+          <RandomVariablePanel
+            variable={selectedVariable}
+          />
         </>
       )}
     </section>
@@ -760,7 +766,7 @@ function DatasetInformation({
         label="Origen"
         value={
           sourceTypeLabels[
-            dataset.source_type
+          dataset.source_type
           ]
         }
       />
@@ -814,7 +820,7 @@ function VariableInformation({
         label="Tipo"
         value={
           variableTypeLabels[
-            variable.variable_type
+          variable.variable_type
           ]
         }
       />
@@ -823,7 +829,7 @@ function VariableInformation({
         label="Valor"
         value={
           variable.value_type ===
-          "NUMERIC"
+            "NUMERIC"
             ? "Numérico"
             : "Texto"
         }
@@ -992,8 +998,8 @@ function AnalysisResultCard({
             label="Clasificación"
             value={
               variableTypeLabels[
-                result.data
-                  .variable_type
+              result.data
+                .variable_type
               ]
             }
           />
@@ -1167,15 +1173,14 @@ function ResultMetric({
         rounded-xl
         border
         p-4
-        ${
-          highlight
-            ? `
+        ${highlight
+          ? `
               border-cyan-200
               bg-cyan-50
               dark:border-cyan-900/50
               dark:bg-cyan-950/20
             `
-            : `
+          : `
               border-slate-200
               bg-slate-50
               dark:border-slate-800
@@ -1201,10 +1206,9 @@ function ResultMetric({
           break-words
           text-lg
           font-bold
-          ${
-            highlight
-              ? "text-cyan-700 dark:text-cyan-300"
-              : "text-slate-950 dark:text-white"
+          ${highlight
+            ? "text-cyan-700 dark:text-cyan-300"
+            : "text-slate-950 dark:text-white"
           }
         `}
       >
