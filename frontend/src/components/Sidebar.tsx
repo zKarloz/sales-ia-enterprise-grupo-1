@@ -57,6 +57,11 @@ const menuItems: MenuItem[] = [
     roles: [ROLE_ADMIN, ROLE_WAREHOUSE],
   },
   {
+    label: "Estadística",
+    path: "/estadistica",
+    roles: [ROLE_ADMIN, ROLE_ANALYST],
+  },
+  {
     label: "Analytics",
     path: "/analytics",
     roles: [ROLE_ADMIN, ROLE_MANAGER, ROLE_ANALYST],
