@@ -46,6 +46,42 @@ def list_sales(db: Session) -> list[dict]:
 
     sale_ids = [sale.id for sale in sales]
 
+    customer_ids = list({
+        sale.customer_id
+        for sale in sales
+    })
+
+    seller_ids = list({
+        sale.seller_id
+        for sale in sales
+    })
+
+    customers = list(
+        db.scalars(
+            select(Customer).where(
+                Customer.id.in_(customer_ids)
+            )
+        ).all()
+    )
+
+    sellers = list(
+        db.scalars(
+            select(User).where(
+                User.id.in_(seller_ids)
+            )
+        ).all()
+    )
+
+    customers_by_id = {
+        customer.id: customer
+        for customer in customers
+    }
+
+    sellers_by_id = {
+        seller.id: seller
+        for seller in sellers
+    }
+
     details = list(
         db.scalars(
             select(SaleDetail)
@@ -76,6 +112,12 @@ def list_sales(db: Session) -> list[dict]:
             sale,
             details_by_sale[sale.id],
             payments_by_sale.get(sale.id),
+            customer=customers_by_id.get(
+                sale.customer_id
+            ),
+            seller=sellers_by_id.get(
+                sale.seller_id
+            ),
         )
         for sale in sales
     ]
@@ -105,10 +147,22 @@ def get_sale(
         .where(Payment.sale_id == sale_id)
     )
 
+    customer = db.get(
+        Customer,
+        sale.customer_id,
+    )
+
+    seller = db.get(
+        User,
+        sale.seller_id,
+    )
+
     return _build_sale_response(
         sale,
         details,
         payment,
+        customer=customer,
+        seller=seller,
     )
 
 
@@ -374,6 +428,8 @@ def _build_sale_response(
     sale: Sale,
     details: list[SaleDetail],
     payment: Payment | None,
+    customer: Customer | None = None,
+    seller: User | None = None,
 ) -> dict:
     """Construye la respuesta completa de una venta."""
 
@@ -381,6 +437,31 @@ def _build_sale_response(
         "id": sale.id,
         "customer_id": sale.customer_id,
         "seller_id": sale.seller_id,
+        "customer_name": (
+            customer.full_name
+            if customer is not None
+            else None
+        ),
+        "customer_document_type": (
+            customer.document_type
+            if customer is not None
+            else None
+        ),
+        "customer_document_number": (
+            customer.document_number
+            if customer is not None
+            else None
+        ),
+        "customer_is_active": (
+            customer.is_active
+            if customer is not None
+            else None
+        ),
+        "seller_name": (
+            seller.full_name
+            if seller is not None
+            else None
+        ),
         "subtotal_amount": sale.subtotal_amount,
         "discount_percentage": sale.discount_percentage,
         "discount_amount": sale.discount_amount,

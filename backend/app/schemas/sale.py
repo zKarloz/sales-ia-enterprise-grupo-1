@@ -89,6 +89,13 @@ class SaleResponse(BaseModel):
     customer_id: int
     seller_id: int
 
+    customer_name: str | None
+    customer_document_type: str | None
+    customer_document_number: str | None
+    customer_is_active: bool | None
+
+    seller_name: str | None
+
     subtotal_amount: Decimal
     discount_percentage: Decimal
     discount_amount: Decimal
