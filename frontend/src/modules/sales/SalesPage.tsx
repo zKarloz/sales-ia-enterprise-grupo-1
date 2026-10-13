@@ -47,10 +47,6 @@ import type {
   SaleCreate,
 } from "../../types/sale";
 
-import type {
-  UserOption,
-} from "../../types/user";
-
 import SaleForm from "./SaleForm";
 import SaleTable from "./SaleTable";
 
@@ -120,17 +116,36 @@ export default function SalesPage() {
     user?.role === ROLE_SELLER;
 
 
-  const [showForm, setShowForm] = useState(false);
-  const [initialCustomerId, setInitialCustomerId] =
-    useState<number | null>(null);
+  const [
+    showForm,
+    setShowForm,
+  ] = useState(false);
 
-  const [actionError, setActionError] =
-    useState<string | null>(null);
+  const [
+    initialCustomerId,
+    setInitialCustomerId,
+  ] = useState<number | null>(
+    null,
+  );
 
-  const [successMessage, setSuccessMessage] =
-    useState<string | null>(null);
+  const [
+    actionError,
+    setActionError,
+  ] = useState<string | null>(
+    null,
+  );
 
-  const [saving, setSaving] = useState(false);
+  const [
+    successMessage,
+    setSuccessMessage,
+  ] = useState<string | null>(
+    null,
+  );
+
+  const [
+    saving,
+    setSaving,
+  ] = useState(false);
 
 
   const {
@@ -150,6 +165,8 @@ export default function SalesPage() {
     refetch: refetchCustomers,
   } = useApi<Customer[]>(
     "/api/customers?include_inactive=true",
+    undefined,
+    canCreateSale,
   );
 
 
@@ -160,27 +177,25 @@ export default function SalesPage() {
     refetch: refetchProducts,
   } = useApi<Product[]>(
     "/api/products",
+    undefined,
+    canCreateSale,
   );
 
 
-  const {
-    data: sellers,
-    loading: sellersLoading,
-    error: sellersError,
-  } = useApi<UserOption[]>(
-    "/api/users/options",
-  );
+  const saleList =
+    sales ?? [];
 
+  const customerList =
+    customers ?? [];
 
-  const saleList = sales ?? [];
-  const customerList = customers ?? [];
   const activeCustomerList =
     customerList.filter(
       (customer) =>
         customer.is_active,
     );
-  const productList = products ?? [];
-  const sellerList = sellers ?? [];
+
+  const productList =
+    products ?? [];
 
 
   useEffect(() => {
@@ -188,25 +203,42 @@ export default function SalesPage() {
       return;
     }
 
-    const params = new URLSearchParams(
-      location.search,
-    );
+    const params =
+      new URLSearchParams(
+        location.search,
+      );
 
-    if (params.get("openSale") !== "1") {
+    if (
+      params.get("openSale") !==
+      "1"
+    ) {
       return;
     }
 
-    const customerId = Number(
-      params.get("customer_id"),
-    );
+    const customerId =
+      Number(
+        params.get(
+          "customer_id",
+        ),
+      );
 
-    if (!Number.isInteger(customerId) || customerId <= 0) {
+    if (
+      !Number.isInteger(
+        customerId,
+      ) ||
+      customerId <= 0
+    ) {
       return;
     }
 
-    setInitialCustomerId(customerId);
+    setInitialCustomerId(
+      customerId,
+    );
+
     setShowForm(true);
+
     setActionError(null);
+
     setSuccessMessage(null);
 
     void refetchCustomers();
@@ -228,14 +260,12 @@ export default function SalesPage() {
   const loading =
     salesLoading ||
     customersLoading ||
-    productsLoading ||
-    sellersLoading;
+    productsLoading;
 
   const error =
     salesError ||
     customersError ||
-    productsError ||
-    sellersError;
+    productsError;
 
 
   async function handleCreateSale(
@@ -243,10 +273,14 @@ export default function SalesPage() {
   ) {
     try {
       setSaving(true);
+
       setActionError(null);
+
       setSuccessMessage(null);
 
-      await createSale(sale);
+      await createSale(
+        sale,
+      );
 
       await Promise.all([
         refetchSales(),
@@ -254,7 +288,10 @@ export default function SalesPage() {
       ]);
 
       setShowForm(false);
-      setInitialCustomerId(null);
+
+      setInitialCustomerId(
+        null,
+      );
 
       setSuccessMessage(
         "La venta fue registrada y el inventario fue actualizado correctamente.",
@@ -275,12 +312,15 @@ export default function SalesPage() {
     documentType: CustomerDocumentType,
     documentNumber: string,
   ) {
-    const params = new URLSearchParams({
-      new: "1",
-      returnTo: "/ventas",
-      document_type: documentType,
-      document_number: documentNumber,
-    });
+    const params =
+      new URLSearchParams({
+        new: "1",
+        returnTo: "/ventas",
+        document_type:
+          documentType,
+        document_number:
+          documentNumber,
+      });
 
     navigate(
       `/clientes?${params.toString()}`,
@@ -290,15 +330,22 @@ export default function SalesPage() {
 
   const totalSales =
     saleList.reduce(
-      (sum, sale) =>
-        sum + Number(sale.total_amount),
+      (
+        sum,
+        sale,
+      ) =>
+        sum +
+        Number(
+          sale.total_amount,
+        ),
       0,
     );
 
 
   const averageTicket =
     saleList.length > 0
-      ? totalSales / saleList.length
+      ? totalSales /
+      saleList.length
       : 0;
 
 
@@ -312,10 +359,21 @@ export default function SalesPage() {
             <Button
               disabled={loading}
               onClick={() => {
-                setActionError(null);
-                setSuccessMessage(null);
-                setInitialCustomerId(null);
-                setShowForm(true);
+                setActionError(
+                  null,
+                );
+
+                setSuccessMessage(
+                  null,
+                );
+
+                setInitialCustomerId(
+                  null,
+                );
+
+                setShowForm(
+                  true,
+                );
               }}
             >
               + Nueva venta
@@ -325,31 +383,58 @@ export default function SalesPage() {
       />
 
       {actionError && (
-        <ErrorState message={actionError} />
+        <ErrorState
+          message={
+            actionError
+          }
+        />
       )}
 
       {successMessage && (
         <SuccessState
           title="Venta registrada"
-          message={successMessage}
+          message={
+            successMessage
+          }
         />
       )}
 
-      {showForm && (
-        <SaleForm
-          customers={activeCustomerList}
-          products={productList}
-          initialCustomerId={initialCustomerId}
-          onRegisterCustomer={handleRegisterCustomer}
-          onSubmit={handleCreateSale}
-          onCancel={() => {
-            setActionError(null);
-            setInitialCustomerId(null);
-            setShowForm(false);
-          }}
-          submitting={saving}
-        />
-      )}
+      {showForm &&
+        canCreateSale && (
+          <SaleForm
+            customers={
+              activeCustomerList
+            }
+            products={
+              productList
+            }
+            initialCustomerId={
+              initialCustomerId
+            }
+            onRegisterCustomer={
+              handleRegisterCustomer
+            }
+            onSubmit={
+              handleCreateSale
+            }
+            onCancel={() => {
+              setActionError(
+                null,
+              );
+
+              setInitialCustomerId(
+                null,
+              );
+
+              setShowForm(
+                false,
+              );
+            }}
+            submitting={
+              saving
+            }
+          />
+        )}
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <MetricCard
@@ -365,8 +450,10 @@ export default function SalesPage() {
           value={`S/ ${totalSales.toLocaleString(
             "es-PE",
             {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
+              minimumFractionDigits:
+                2,
+              maximumFractionDigits:
+                2,
             },
           )}`}
           helper="Monto acumulado"
@@ -377,8 +464,10 @@ export default function SalesPage() {
           value={`S/ ${averageTicket.toLocaleString(
             "es-PE",
             {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
+              minimumFractionDigits:
+                2,
+              maximumFractionDigits:
+                2,
             },
           )}`}
           helper="Promedio por operación"
@@ -390,16 +479,22 @@ export default function SalesPage() {
         subtitle="Operaciones comerciales registradas en el sistema."
       >
         {loading && (
-          <LoadingState message="Cargando ventas..." />
-        )}
-
-        {!loading && error && (
-          <ErrorState message={error} />
+          <LoadingState
+            message="Cargando ventas..."
+          />
         )}
 
         {!loading &&
+          error && (
+            <ErrorState
+              message={error}
+            />
+          )}
+
+        {!loading &&
           !error &&
-          saleList.length === 0 && (
+          saleList.length ===
+          0 && (
             <EmptyState
               title="No hay ventas"
               message="Todavía no existen ventas registradas."
@@ -408,11 +503,12 @@ export default function SalesPage() {
 
         {!loading &&
           !error &&
-          saleList.length > 0 && (
+          saleList.length >
+          0 && (
             <SaleTable
-              sales={saleList}
-              customers={customerList}
-              sellers={sellerList}
+              sales={
+                saleList
+              }
             />
           )}
       </Card>

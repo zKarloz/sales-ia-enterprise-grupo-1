@@ -1,31 +1,69 @@
 from decimal import Decimal
+from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
-class StatisticalRequest(BaseModel):
-    """Datos requeridos para ejecutar un análisis."""
+VariableType = Literal[
+    "QUALITATIVE_NOMINAL",
+    "QUALITATIVE_ORDINAL",
+    "QUANTITATIVE_DISCRETE",
+    "QUANTITATIVE_CONTINUOUS",
+]
 
-    values: list[Decimal] = Field(min_length=1)
+ValueType = Literal[
+    "NUMERIC",
+    "TEXT",
+]
+
+
+class VariableAnalysisRequest(BaseModel):
+    """Selecciona una variable persistida para ejecutar un análisis."""
+
+    variable_id: int = Field(gt=0)
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+
+
+class ClassificationResponse(BaseModel):
+    """Clasificación estadística registrada para una variable."""
+
+    analysis_id: int
+
+    dataset_id: int
+    variable_id: int
+
     variable_name: str
-    dataset_id: int | None = None
-    created_by: int | None = None
+    variable_type: VariableType
+    value_type: ValueType
+
+    observation_count: int
 
 
 class MeanResponse(BaseModel):
-    """Resultado de una media aritmética."""
+    """Resultado de la media aritmética."""
 
     analysis_id: int
+
+    dataset_id: int
+    variable_id: int
     variable_name: str
+
     count: int
     mean: Decimal
 
 
 class MedianResponse(BaseModel):
-    """Resultado de una mediana."""
+    """Resultado de la mediana."""
 
     analysis_id: int
+
+    dataset_id: int
+    variable_id: int
     variable_name: str
+
     count: int
     median: Decimal
 
@@ -34,8 +72,13 @@ class CompareResponse(BaseModel):
     """Comparación de media y mediana."""
 
     analysis_id: int
+
+    dataset_id: int
+    variable_id: int
     variable_name: str
+
     count: int
+
     mean: Decimal
     median: Decimal
     difference: Decimal

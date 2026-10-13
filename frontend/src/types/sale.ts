@@ -30,6 +30,13 @@ export interface Sale {
   customer_id: number;
   seller_id: number;
 
+  customer_name: string | null;
+  customer_document_type: string | null;
+  customer_document_number: string | null;
+  customer_is_active: boolean | null;
+
+  seller_name: string | null;
+
   subtotal_amount: string;
   discount_percentage: string;
   discount_amount: string;

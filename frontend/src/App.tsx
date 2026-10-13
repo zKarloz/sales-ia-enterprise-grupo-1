@@ -30,6 +30,7 @@ import CategoriesPage from "./modules/categories/CategoriesPage";
 import ReportsPage from "./modules/reports/ReportsPage";
 import SalesPage from "./modules/sales/SalesPage";
 import SuppliersPage from "./modules/suppliers/SuppliersPage";
+import StatisticsPage from "./modules/statistics/StatisticsPage";
 
 function App() {
   return (
@@ -100,6 +101,22 @@ function App() {
                 <Route
                   path="/ventas"
                   element={<SalesPage />}
+                />
+              </Route>
+
+              <Route
+                element={
+                  <RoleRoute
+                    allowedRoles={[
+                      ROLE_ADMIN,
+                      ROLE_ANALYST,
+                    ]}
+                  />
+                }
+              >
+                <Route
+                  path="/estadistica"
+                  element={<StatisticsPage />}
                 />
               </Route>
 

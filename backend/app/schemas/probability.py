@@ -1,33 +1,88 @@
-from pydantic import BaseModel, Field
+from decimal import Decimal
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ProbabilityRequest(BaseModel):
-    """Datos para calcular una probabilidad simple."""
+    """Evento de una variable aleatoria discreta."""
 
-    favorable: int = Field(ge=0)
-    total: int = Field(gt=0)
+    random_variable_id: int = Field(gt=0)
+
+    event_value: Decimal
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
 
 
 class ProbabilityResponse(BaseModel):
-    """Resultado de probabilidad simple."""
+    """Probabilidad empírica calculada desde observaciones reales."""
 
-    probability: float
+    analysis_id: int
+    random_variable_id: int
+
+    dataset_id: int
+    variable_id: int
+    variable_name: str
+
+    event_value: Decimal
+
+    favorable: int
+    total: int
+
+    probability: Decimal
 
 
 class BayesRequest(BaseModel):
-    """Probabilidades necesarias para aplicar Bayes."""
+    """Probabilidades necesarias para aplicar el Teorema de Bayes."""
 
-    probability_a: float = Field(gt=0, le=1)
-    probability_b_given_a: float = Field(ge=0, le=1)
-    probability_b: float = Field(gt=0, le=1)
+    dataset_id: int = Field(gt=0)
 
-    variable_name: str = "Bayes"
-    dataset_id: int | None = None
-    created_by: int | None = None
+    analysis_name: str = Field(
+        default="Bayes",
+        min_length=1,
+        max_length=100,
+    )
+
+    event_a: str = Field(
+        min_length=1,
+        max_length=150,
+    )
+
+    event_b: str = Field(
+        min_length=1,
+        max_length=150,
+    )
+
+    probability_a: Decimal = Field(
+        ge=0,
+        le=1,
+    )
+
+    probability_b_given_a: Decimal = Field(
+        ge=0,
+        le=1,
+    )
+
+    probability_b: Decimal = Field(
+        gt=0,
+        le=1,
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
 
 
 class BayesResponse(BaseModel):
-    """Resultado de P(A|B)."""
+    """Resultado persistido de P(A|B)."""
 
     analysis_id: int
-    probability_a_given_b: float
+    bayes_analysis_id: int
+
+    dataset_id: int
+
+    event_a: str
+    event_b: str
+
+    probability_a_given_b: Decimal

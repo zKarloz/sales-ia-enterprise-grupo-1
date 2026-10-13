@@ -1,51 +1,18 @@
 import StatusBadge from "../../components/StatusBadge";
 
 import type {
-  Customer,
-} from "../../types/customer";
-
-import type {
   Sale,
 } from "../../types/sale";
-
-import type {
-  UserOption,
-} from "../../types/user";
 
 
 interface SaleTableProps {
   sales: Sale[];
-  customers: Customer[];
-  sellers: UserOption[];
 }
 
 
 export default function SaleTable({
   sales,
-  customers,
-  sellers,
 }: SaleTableProps) {
-  const customerMap =
-    new Map(
-      customers.map(
-        (customer) => [
-          customer.id,
-          customer,
-        ],
-      ),
-    );
-
-  const sellerMap =
-    new Map(
-      sellers.map(
-        (seller) => [
-          seller.id,
-          seller.full_name,
-        ],
-      ),
-    );
-
-
   return (
     <div
       className="
@@ -152,11 +119,6 @@ export default function SaleTable({
                       : sale.status ??
                       "Sin estado";
 
-                const customer =
-                  customerMap.get(
-                    sale.customer_id,
-                  );
-
                 return (
                   <tr
                     key={sale.id}
@@ -193,27 +155,26 @@ export default function SaleTable({
                           dark:text-slate-100
                         "
                       >
-                        {customer?.full_name ??
+                        {sale.customer_name ??
                           `Cliente #${sale.customer_id}`}
                       </p>
 
-                      {customer &&
-                        !customer.is_active && (
+                      {sale.customer_is_active ===
+                        false && (
                           <p
                             className="
-                              mt-1
-                              text-xs
-                              font-semibold
-                              text-amber-600
-                              dark:text-amber-400
-                            "
+                            mt-1
+                            text-xs
+                            font-semibold
+                            text-amber-600
+                            dark:text-amber-400
+                          "
                           >
                             Cliente inactivo
                           </p>
                         )}
                     </td>
 
-                    {/* Documento */}
                     <td
                       className="
                         whitespace-nowrap
@@ -222,7 +183,7 @@ export default function SaleTable({
                         text-sm
                       "
                     >
-                      {customer?.document_number ? (
+                      {sale.customer_document_number ? (
                         <>
                           <p
                             className="
@@ -231,7 +192,9 @@ export default function SaleTable({
                               dark:text-slate-200
                             "
                           >
-                            {customer.document_number}
+                            {
+                              sale.customer_document_number
+                            }
                           </p>
 
                           <p
@@ -242,8 +205,10 @@ export default function SaleTable({
                               dark:text-slate-500
                             "
                           >
-                            {customer.document_type ??
-                              "Documento"}
+                            {
+                              sale.customer_document_type ??
+                              "Documento"
+                            }
                           </p>
                         </>
                       ) : (
@@ -267,9 +232,7 @@ export default function SaleTable({
                         dark:text-slate-300
                       "
                     >
-                      {sellerMap.get(
-                        sale.seller_id,
-                      ) ??
+                      {sale.seller_name ??
                         `Usuario #${sale.seller_id}`}
                     </td>
 
@@ -328,7 +291,8 @@ export default function SaleTable({
                         dark:text-slate-300
                       "
                     >
-                      {sale.payment?.method ?? sale.payment_method}
+                      {sale.payment?.method ??
+                        sale.payment_method}
                     </td>
 
                     <td
@@ -340,7 +304,8 @@ export default function SaleTable({
                         dark:text-slate-300
                       "
                     >
-                      {sale.payment?.reference ?? "—"}
+                      {sale.payment?.reference ??
+                        "—"}
                     </td>
 
                     <td
@@ -351,18 +316,26 @@ export default function SaleTable({
                     >
                       <StatusBadge
                         status={
-                          sale.payment?.status === "PAID"
+                          sale.payment?.status ===
+                            "PAID"
                             ? "active"
-                            : sale.payment?.status === "PENDING"
+                            : sale.payment
+                              ?.status ===
+                              "PENDING"
                               ? "pending"
                               : "error"
                         }
                         label={
-                          sale.payment?.status === "PAID"
+                          sale.payment?.status ===
+                            "PAID"
                             ? "Pagado"
-                            : sale.payment?.status === "PENDING"
+                            : sale.payment
+                              ?.status ===
+                              "PENDING"
                               ? "Pendiente"
-                              : sale.payment?.status ?? "Sin pago"
+                              : sale.payment
+                                ?.status ??
+                              "Sin pago"
                         }
                       />
                     </td>
@@ -384,8 +357,10 @@ export default function SaleTable({
                       ).toLocaleString(
                         "es-PE",
                         {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
+                          minimumFractionDigits:
+                            2,
+                          maximumFractionDigits:
+                            2,
                         },
                       )}
                     </td>
@@ -414,8 +389,10 @@ export default function SaleTable({
                         ).toLocaleString(
                           "es-PE",
                           {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
+                            minimumFractionDigits:
+                              2,
+                            maximumFractionDigits:
+                              2,
                           },
                         )}
                       </p>
@@ -445,8 +422,10 @@ export default function SaleTable({
                         ).toLocaleString(
                           "es-PE",
                           {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
+                            minimumFractionDigits:
+                              2,
+                            maximumFractionDigits:
+                              2,
                           },
                         )}
                       </p>
@@ -485,9 +464,7 @@ export default function SaleTable({
                     >
                       <StatusBadge
                         status={status}
-                        label={
-                          statusLabel
-                        }
+                        label={statusLabel}
                       />
                     </td>
                   </tr>
