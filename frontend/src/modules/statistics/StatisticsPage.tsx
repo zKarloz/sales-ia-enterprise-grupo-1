@@ -12,6 +12,7 @@ import PageHeader from "../../components/PageHeader";
 import RandomVariablePanel from "./RandomVariablePanel";
 import BayesPanel from "./BayesPanel";
 import AnalysisHistoryPanel from "./AnalysisHistoryPanel";
+import DatasetGeneratorPanel from "./DatasetGeneratorPanel";
 
 import {
   getDatasets,
@@ -373,6 +374,25 @@ export default function StatisticsPage() {
     }
   }
 
+  function handleDatasetGenerated(
+    dataset: Dataset,
+  ) {
+    setDatasets((current) => [
+      dataset,
+      ...current.filter(
+        (item) =>
+          item.id !== dataset.id,
+      ),
+    ]);
+
+    setSelectedDatasetId(
+      dataset.id,
+    );
+
+    setSelectedVariableId("");
+    setResult(null);
+    setError("");
+  }
 
   return (
     <section className="w-full space-y-6">
@@ -380,7 +400,11 @@ export default function StatisticsPage() {
         title="Estadística"
         description="Analiza datasets operacionales mediante estadística descriptiva, variables aleatorias, probabilidad y Bayes."
       />
-
+      <DatasetGeneratorPanel
+        onDatasetGenerated={
+          handleDatasetGenerated
+        }
+      />
       {loadingDatasets && (
         <LoadingState
           message="Cargando datasets..."
