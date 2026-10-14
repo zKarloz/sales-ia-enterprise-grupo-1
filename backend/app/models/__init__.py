@@ -11,6 +11,7 @@ from app.models.sale import Sale
 from app.models.sale_detail import SaleDetail
 from app.models.payment import Payment
 from app.models.inventory import InventoryMovement
+from app.models.branch import Branch
 
 # Modelos de datasets y motor estadístico.
 from app.models.dataset import Dataset
@@ -46,4 +47,5 @@ __all__ = [
     "BayesAnalysis",
     "Insight",
     "AuditLog",
+    "Branch",
 ]

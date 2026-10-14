@@ -50,19 +50,18 @@ export default function SalesChart({
         "
       >
         {values.map(
-          (item) => {
+          (item, itemIndex) => {
             const height =
-              Math.max(
-                (
-                  item.total /
-                  maxValue
-                ) * 100,
-                4,
-              );
+              item.total > 0
+                ? Math.max(
+                  (item.total / maxValue) * 100,
+                  4,
+                )
+                : 0;
 
             return (
               <div
-                key={item.label}
+                key={`${item.label}-${itemIndex}`}
                 className="
                   flex
                   min-w-0

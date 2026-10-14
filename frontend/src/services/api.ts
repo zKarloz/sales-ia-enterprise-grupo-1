@@ -4,6 +4,7 @@ const API_URL =
 
 const TOKEN_KEY = "salesia_access_token";
 
+export const SESSION_EXPIRED_EVENT = "salesia:session-expired";
 
 interface RequestOptions extends RequestInit {
   token?: string;
@@ -63,16 +64,37 @@ export async function apiRequest<T>(
 
   const data = await response.json().catch(() => null);
 
+
   if (!response.ok) {
+    // No cerrar la sesión por credenciales incorrectas
+    // durante un intento de inicio de sesión.
+    const isLoginRequest = endpoint === "/api/auth/login";
+
+    if (
+      response.status === 401 &&
+      !isLoginRequest &&
+      token &&
+      getAccessToken() === token
+    ) {
+      clearAccessToken();
+
+      window.dispatchEvent(
+        new Event(SESSION_EXPIRED_EVENT),
+      );
+    }
+
     const message =
-      typeof data?.detail === "string"
-        ? data.detail
-        : typeof data?.message === "string"
-          ? data.message
-          : "Ocurrió un error al comunicarse con la API.";
+      response.status === 401 && !isLoginRequest
+        ? "Tu sesión expiró. Inicia sesión nuevamente."
+        : typeof data?.detail === "string"
+          ? data.detail
+          : typeof data?.message === "string"
+            ? data.message
+            : "Ocurrió un error al comunicarse con la API.";
 
     throw new Error(message);
   }
+
 
   return data as T;
 }

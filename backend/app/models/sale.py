@@ -64,6 +64,14 @@ class Sale(Base):
         nullable=False,
     )
 
+
+    branch_id: Mapped[int] = mapped_column(
+        ForeignKey("branches.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+
+
     subtotal_amount: Mapped[Decimal] = mapped_column(
         Numeric(12, 2),
         nullable=False,

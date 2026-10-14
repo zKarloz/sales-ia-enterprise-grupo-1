@@ -42,6 +42,8 @@ import type {
   Product,
 } from "../../types/product";
 
+import type { Branch } from "../../types/branch";
+
 import type {
   Sale,
   SaleCreate,
@@ -182,6 +184,18 @@ export default function SalesPage() {
   );
 
 
+  const {
+    data: branches,
+    loading: branchesLoading,
+    error: branchesError,
+  } = useApi<Branch[]>(
+    "/api/branches",
+    undefined,
+    canCreateSale,
+  );
+
+  const activeBranches = branches ?? [];
+
   const saleList =
     sales ?? [];
 
@@ -260,12 +274,14 @@ export default function SalesPage() {
   const loading =
     salesLoading ||
     customersLoading ||
-    productsLoading;
+    productsLoading ||
+    (canCreateSale && branchesLoading);
 
   const error =
     salesError ||
     customersError ||
-    productsError;
+    productsError ||
+    (canCreateSale ? branchesError : null);
 
 
   async function handleCreateSale(
@@ -402,6 +418,7 @@ export default function SalesPage() {
       {showForm &&
         canCreateSale && (
           <SaleForm
+            branches={activeBranches}
             customers={
               activeCustomerList
             }
