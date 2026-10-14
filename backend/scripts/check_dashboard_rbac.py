@@ -165,7 +165,7 @@ def main():
                 email,
                 password,
                 role,
-                
+
             )
 
             status, _ = request(
@@ -213,7 +213,7 @@ def main():
             failures += 1
             print(f"  ERROR: {error}")
 
-    
+
     print("\nSin autenticación")
 
     for endpoint in (*ENDPOINTS, HOME_ENDPOINT):
