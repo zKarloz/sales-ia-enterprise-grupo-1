@@ -8,6 +8,7 @@ export interface SaleItemCreate {
 
 // Payload aceptado por POST /api/sales.
 export interface SaleCreate {
+  branch_id: number;
   customer_id: number;
   payment_method: string;
   payment_reference?: string | null;
@@ -29,6 +30,8 @@ export interface Sale {
   id: number;
   customer_id: number;
   seller_id: number;
+  branch_id: number | null;
+  branch_name: string | null;
 
   customer_name: string | null;
   customer_document_type: string | null;

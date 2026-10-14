@@ -20,6 +20,8 @@ import type {
   Product,
 } from "../../types/product";
 
+import type { Branch } from "../../types/branch";
+
 import type {
   SaleCreate,
   SaleItemCreate,
@@ -27,6 +29,7 @@ import type {
 
 
 interface SaleFormProps {
+  branches: Branch[];
   customers: Customer[];
   products: Product[];
   initialCustomerId?: number | null;
@@ -95,6 +98,7 @@ const labelClasses = `
 
 
 export default function SaleForm({
+  branches,
   customers,
   products,
   initialCustomerId = null,
@@ -103,6 +107,7 @@ export default function SaleForm({
   onCancel,
   submitting = false,
 }: SaleFormProps) {
+  const [branchId, setBranchId] = useState("");
   const [customerId, setCustomerId] = useState("");
   const [documentType, setDocumentType] =
     useState<CustomerDocumentType>("DNI");
@@ -430,6 +435,8 @@ export default function SaleForm({
 
     if (
       !customerId ||
+      !branchId ||
+      !branches.some((branch) => branch.id === Number(branchId)) ||
       !paymentMethod ||
       items.length === 0
     ) {
@@ -454,6 +461,7 @@ export default function SaleForm({
     }
 
     await onSubmit({
+      branch_id: Number(branchId),
       customer_id: Number(customerId),
       payment_method: paymentMethod,
       payment_reference:
@@ -530,6 +538,31 @@ export default function SaleForm({
       </header>
 
       <div className="space-y-7 p-5 sm:p-6">
+        <div>
+          <label htmlFor="sale-branch" className={labelClasses}>
+            Sucursal <span className="ml-1 text-red-500">*</span>
+          </label>
+          <select
+            id="sale-branch"
+            value={branchId}
+            onChange={(event) => setBranchId(event.target.value)}
+            required
+            disabled={submitting || branches.length === 0}
+            className={controlClasses}
+          >
+            <option value="">Seleccionar sucursal</option>
+            {branches.map((branch) => (
+              <option key={branch.id} value={branch.id}>
+                {branch.name} ({branch.code})
+              </option>
+            ))}
+          </select>
+          {branches.length === 0 && (
+            <p className="mt-2 text-sm text-amber-600 dark:text-amber-400">
+              No hay sucursales activas disponibles.
+            </p>
+          )}
+        </div>
         <section
           className="
             rounded-2xl
@@ -1139,7 +1172,7 @@ export default function SaleForm({
 
         <Button
           type="submit"
-          disabled={submitting}
+          disabled={submitting || branches.length === 0}
         >
           {submitting
             ? "Registrando..."

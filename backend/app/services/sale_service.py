@@ -12,8 +12,11 @@ from app.models.sale import Sale
 from app.models.sale_detail import SaleDetail
 from app.models.user import User
 from app.models.payment import Payment
+from app.models.branch import Branch
 
 from app.schemas.sale import SaleCreate
+
+from app.services.branch_service import get_branch
 from app.services.payment_service import create_payment_record
 
 
@@ -55,6 +58,25 @@ def list_sales(db: Session) -> list[dict]:
         sale.seller_id
         for sale in sales
     })
+
+    branch_ids = list({
+        sale.branch_id
+        for sale in sales
+        if sale.branch_id is not None
+    })
+
+    branches = list(
+        db.scalars(
+            select(Branch).where(
+                Branch.id.in_(branch_ids)
+            )
+        ).all()
+    ) if branch_ids else []
+
+    branches_by_id = {
+        branch.id: branch
+        for branch in branches
+    }
 
     customers = list(
         db.scalars(
@@ -118,6 +140,9 @@ def list_sales(db: Session) -> list[dict]:
             seller=sellers_by_id.get(
                 sale.seller_id
             ),
+            branch=branches_by_id.get(
+                sale.branch_id
+            ),
         )
         for sale in sales
     ]
@@ -157,12 +182,19 @@ def get_sale(
         sale.seller_id,
     )
 
+    branch = (
+        db.get(Branch, sale.branch_id)
+        if sale.branch_id is not None
+        else None
+    )
+
     return _build_sale_response(
         sale,
         details,
         payment,
         customer=customer,
         seller=seller,
+        branch=branch,
     )
 
 
@@ -179,6 +211,21 @@ def create_sale(
     """
 
     try:
+        branch = get_branch(
+            db,
+            data.branch_id,
+        )
+
+        if branch is None:
+            raise LookupError(
+                "Sucursal no encontrada."
+            )
+
+        if not branch.is_active:
+            raise ValueError(
+                "La sucursal seleccionada se encuentra inactiva."
+            )
+
         customer = db.get(
             Customer,
             data.customer_id,
@@ -288,6 +335,7 @@ def create_sale(
         )
 
         sale = Sale(
+            branch_id=branch.id,
             customer_id=data.customer_id,
             seller_id=seller_id,
             subtotal_amount=subtotal_amount,
@@ -357,6 +405,8 @@ def create_sale(
             table_name="sales",
             record_id=sale.id,
             details={
+                "branch_id": branch.id,
+                "branch_name": branch.name,
                 "customer_id": data.customer_id,
                 "subtotal_amount": str(subtotal_amount),
                 "discount_percentage": str(
@@ -413,6 +463,9 @@ def create_sale(
             sale,
             details,
             payment,
+            customer=customer,
+            seller=seller,
+            branch=branch,
         )
 
     except (LookupError, ValueError):
@@ -430,6 +483,7 @@ def _build_sale_response(
     payment: Payment | None,
     customer: Customer | None = None,
     seller: User | None = None,
+    branch: Branch | None = None,
 ) -> dict:
     """Construye la respuesta completa de una venta."""
 
@@ -473,4 +527,10 @@ def _build_sale_response(
         "status": sale.status,
         "created_at": sale.created_at,
         "items": details,
+        "branch_id": sale.branch_id,
+        "branch_name": (
+            branch.name
+            if branch is not None
+            else None
+        ),
     }

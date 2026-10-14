@@ -33,6 +33,8 @@ class SaleCreate(BaseModel):
 
     customer_id: int = Field(gt=0)
 
+    branch_id: int = Field(gt=0)
+
     payment_method: PaymentMethod
 
     payment_reference: str | None = Field(
@@ -88,6 +90,9 @@ class SaleResponse(BaseModel):
     id: int
     customer_id: int
     seller_id: int
+
+    branch_id: int
+    branch_name: str | None
 
     customer_name: str | None
     customer_document_type: str | None

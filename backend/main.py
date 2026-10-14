@@ -9,6 +9,7 @@ from app.api.dependencies.auth import get_current_user
 from app.api.routes import (
     analyses,
     auth,
+    branches,
     categories,
     customers,
     datasets,
@@ -47,6 +48,7 @@ app.add_middleware(
 )
 
 app.include_router(auth.router, prefix="/api")
+app.include_router(branches.router, prefix="/api")
 
 app.include_router(categories.router, prefix="/api")
 app.include_router(customers.router, prefix="/api")
