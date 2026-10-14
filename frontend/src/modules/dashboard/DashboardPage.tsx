@@ -139,7 +139,7 @@ export default function DashboardPage() {
     error: summaryError,
     refetch: refetchSummary,
   } = useApi<DashboardSummary>(
-    "/api/dashboard/summary?period=month&seller=all&category=all",
+    "/api/dashboard/home",
   );
 
 
