@@ -1,624 +1,587 @@
-import {
-    useState,
-} from "react";
+
+import { useState } from "react";
 
 import Button from "../../components/Button";
 import Card from "../../components/Card";
 import PageHeader from "../../components/PageHeader";
 
+import {
+    downloadReport,
+    getReport,
+    getReportExtension,
+} from "../../services/reportService";
 
-type ReportType =
-    | "sales"
-    | "inventory"
-    | "customers"
-    | "analytics";
+import type {
+    ReportExportFormat,
+    ReportFilters,
+    ReportResponse,
+    ReportType,
+} from "../../types/report";
 
+import ReportExplorer from "./ReportExplorer";
 
-interface ReportOption {
+const reportOptions: {
     id: ReportType;
     title: string;
     description: string;
     label: string;
+}[] = [
+        {
+            id: "sales",
+            title: "Reporte de ventas",
+            description: "Operaciones, clientes y montos del período.",
+            label: "Comercial",
+        },
+        {
+            id: "inventory",
+            title: "Reporte de inventario",
+            description: "Existencias, valorización y movimientos.",
+            label: "Operaciones",
+        },
+        {
+            id: "customers",
+            title: "Reporte de clientes",
+            description: "Compras y actividad comercial de clientes.",
+            label: "Clientes",
+        },
+        {
+            id: "analytics",
+            title: "Reporte analítico",
+            description: "Indicadores, tendencias y distribuciones.",
+            label: "Analytics",
+        },
+    ];
+
+const inputClass =
+    "w-full rounded-xl border border-slate-300 bg-white " +
+    "px-3 py-2.5 text-sm text-slate-900 outline-none " +
+    "focus:border-cyan-500 dark:border-slate-700 " +
+    "dark:bg-slate-950 dark:text-slate-100";
+
+const secondaryText = "text-slate-600 dark:text-slate-300";
+
+function readObject(value: unknown): Record<string, unknown> | null {
+    if (value === null || typeof value !== "object" || Array.isArray(value)) {
+        return null;
+    }
+    return value as Record<string, unknown>;
+}
+
+function displayValue(value: unknown): string {
+    if (value == null) return "—";
+    if (typeof value === "boolean") return value ? "Sí" : "No";
+    if (typeof value === "string" || typeof value === "number") {
+        return String(value);
+    }
+    if (Array.isArray(value)) return `${value.length} registros`;
+    return "—";
+}
+
+function niceLabel(key: string): string {
+    return key
+        .replaceAll("_", " ")
+        .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function readError(error: unknown): string {
+    return error instanceof Error
+        ? error.message
+        : "Ocurrió un error inesperado.";
+}
+
+function optionalId(value: string): number | null {
+    return value ? Number(value) : null;
+}
+
+function ReportPreview({ data }: { data: ReportResponse }) {
+    const summary = readObject(data.summary);
+    const kpis = readObject(data.kpis);
+    const indicators = summary ?? kpis;
+
+    const entries = Object.entries(data).filter(
+        ([, value]) =>
+            Array.isArray(value) &&
+            value.every((item) => readObject(item) !== null),
+    );
+
+    const primaryRows = entries.find(([key]) => key === "items")
+        ?? entries.find(([key]) => key !== "filters_applied");
+
+    const rows = primaryRows?.[1] as unknown[] | undefined;
+    const objects = (rows ?? [])
+        .map(readObject)
+        .filter((row): row is Record<string, unknown> => row !== null);
+
+    const columns = objects.length > 0
+        ? Object.keys(objects[0]).slice(0, 8)
+        : [];
+
+    return (
+        <div className="space-y-5">
+            {typeof data.message === "string" && data.message && (
+                <p className={`text-sm ${secondaryText}`}>{data.message}</p>
+            )}
+
+            {indicators && (
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    {Object.entries(indicators)
+                        .filter(([, value]) =>
+                            value === null ||
+                            ["string", "number", "boolean"].includes(typeof value),
+                        )
+                        .map(([key, value]) => (
+                            <div
+                                key={key}
+                                className="rounded-xl border border-slate-200 p-4 dark:border-slate-800"
+                            >
+                                <p className="text-xs text-slate-500 dark:text-slate-400">
+                                    {niceLabel(key)}
+                                </p>
+                                <p className="mt-2 break-words text-lg font-bold text-slate-900 dark:text-white">
+                                    {displayValue(value)}
+                                </p>
+                            </div>
+                        ))}
+                </div>
+            )}
+
+            {primaryRows && (
+                <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                        <h3 className="font-semibold text-slate-900 dark:text-white">
+                            {niceLabel(primaryRows[0])}
+                        </h3>
+                        <span className={`text-sm ${secondaryText}`}>
+                            {objects.length} registros
+                        </span>
+                    </div>
+
+                    {objects.length > 0 ? (
+                        <>
+                            <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+                                <table className="min-w-full text-left text-xs">
+                                    <thead className="bg-slate-100 dark:bg-slate-800">
+                                        <tr>
+                                            {columns.map((column) => (
+                                                <th key={column} className="whitespace-nowrap px-3 py-3">
+                                                    {niceLabel(column)}
+                                                </th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {objects.slice(0, 10).map((row, index) => (
+                                            <tr
+                                                key={index}
+                                                className="border-t border-slate-200 dark:border-slate-800"
+                                            >
+                                                {columns.map((column) => (
+                                                    <td
+                                                        key={column}
+                                                        className="max-w-56 px-3 py-3 text-slate-700 dark:text-slate-200"
+                                                    >
+                                                        {displayValue(row[column])}
+                                                    </td>
+                                                ))}
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {objects.length > 10 && (
+                                <p className={`text-xs ${secondaryText}`}>
+                                    Vista previa limitada a 10 registros. Exporta para obtener el reporte completo.
+                                </p>
+                            )}
+                        </>
+                    ) : (
+                        <p className={`text-sm ${secondaryText}`}>
+                            No hay registros para los filtros seleccionados.
+                        </p>
+                    )}
+                </div>
+            )}
+
+            {!indicators && !primaryRows && (
+                <p className={`text-sm ${secondaryText}`}>
+                    Consulta realizada. Utiliza las exportaciones para obtener el detalle.
+                </p>
+            )}
+        </div>
+    );
 }
 
 
-const reportOptions: ReportOption[] = [
-    {
-        id: "sales",
-        title: "Reporte de ventas",
-        description:
-            "Consulta operaciones, montos, clientes y rendimiento comercial del período seleccionado.",
-        label: "Comercial",
-    },
-    {
-        id: "inventory",
-        title: "Reporte de inventario",
-        description:
-            "Analiza existencias, productos con stock bajo y disponibilidad actual.",
-        label: "Operaciones",
-    },
-    {
-        id: "customers",
-        title: "Reporte de clientes",
-        description:
-            "Obtén información consolidada de clientes y actividad comercial.",
-        label: "Clientes",
-    },
-    {
-        id: "analytics",
-        title: "Reporte analítico",
-        description:
-            "Resume indicadores estadísticos, tendencias y métricas comerciales.",
-        label: "Analytics",
-    },
-];
-
-
-const inputClasses = `
-  h-11
-  w-full
-  rounded-xl
-  border
-  border-slate-300
-  bg-white
-  px-3.5
-  text-sm
-  text-slate-900
-  outline-none
-  transition
-  focus:border-cyan-500
-  focus:ring-4
-  focus:ring-cyan-500/10
-  dark:border-slate-700
-  dark:bg-slate-950
-  dark:text-slate-100
-`;
-
-
 export default function ReportsPage() {
-    const [
-        reportType,
-        setReportType,
-    ] = useState<ReportType>(
-        "sales",
-    );
+    const [reportType, setReportType] = useState<ReportType>("sales");
+    const [startDate, setStartDate] = useState("");
+    const [endDate, setEndDate] = useState("");
 
-    const [
-        startDate,
-        setStartDate,
-    ] = useState("");
+    const [branchId, setBranchId] = useState("");
+    const [sellerId, setSellerId] = useState("");
+    const [categoryId, setCategoryId] = useState("");
+    const [stockThreshold, setStockThreshold] = useState("5");
+    const [includeInactive, setIncludeInactive] = useState(false);
 
-    const [
-        endDate,
-        setEndDate,
-    ] = useState("");
-
-    const [
-        configured,
-        setConfigured,
-    ] = useState(false);
-
+    const [report, setReport] = useState<ReportResponse | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [exporting, setExporting] = useState<ReportExportFormat | null>(null);
+    const [error, setError] = useState("");
+    const [notice, setNotice] = useState("");
 
     const selectedReport =
-        reportOptions.find(
-            (report) =>
-                report.id === reportType,
-        ) ?? reportOptions[0];
+        reportOptions.find((item) => item.id === reportType)
+        ?? reportOptions[0];
 
+    const isInventory = reportType === "inventory";
+    const isCustomers = reportType === "customers";
+    const isAnalytics = reportType === "analytics";
 
-    function handlePrepareReport() {
-        setConfigured(true);
+    function invalidate() {
+        setReport(null);
+        setError("");
+        setNotice("");
     }
 
+    function validateFilters(): ReportFilters | null {
+        if (!startDate || !endDate) {
+            setError("Selecciona la fecha inicial y la fecha final.");
+            return null;
+        }
+
+        if (startDate > endDate) {
+            setError("La fecha inicial no puede superar la fecha final.");
+            return null;
+        }
+
+        const ids = [branchId, sellerId, categoryId];
+        if (ids.some((value) => value && (!Number.isSafeInteger(Number(value)) || Number(value) <= 0))) {
+            setError("Los identificadores deben ser números enteros positivos.");
+            return null;
+        }
+
+        const threshold = Number(stockThreshold);
+        if (isInventory && (!Number.isSafeInteger(threshold) || threshold < 0)) {
+            setError("El umbral de stock debe ser un entero no negativo.");
+            return null;
+        }
+
+        setError("");
+
+        return {
+            date_from: startDate,
+            date_to: endDate,
+            branch_id: optionalId(branchId),
+            seller_id: optionalId(sellerId),
+            category_id: optionalId(categoryId),
+            stock_threshold: isInventory ? threshold : undefined,
+            include_inactive: (isInventory || isCustomers)
+                ? includeInactive
+                : undefined,
+        };
+    }
+
+    async function handleConsult() {
+        const filters = validateFilters();
+        if (!filters || loading || exporting) return;
+
+        setLoading(true);
+        setReport(null);
+        setNotice("");
+
+        try {
+            const result = await getReport(reportType, filters);
+            setReport(result);
+            setNotice("Reporte consultado correctamente.");
+        } catch (err) {
+            setError(readError(err));
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    async function handleExport(format: ReportExportFormat) {
+        const filters = validateFilters();
+        if (!filters || loading || exporting) return;
+
+        setExporting(format);
+        setNotice("");
+
+        try {
+            const filename = await downloadReport(reportType, format, filters);
+            setNotice(`Descarga iniciada: ${filename}`);
+        } catch (err) {
+            setError(readError(err));
+        } finally {
+            setExporting(null);
+        }
+    }
+
+    const busy = loading || exporting !== null;
 
     return (
-        <section
-            className="
-        w-full
-        space-y-6
-      "
-        >
+        <section className="w-full space-y-6">
             <PageHeader
                 title="Reportes"
-                description="Configura y genera reportes comerciales y operativos de SalesIA Enterprise."
+                description="Consulta y exporta información comercial y operativa de SalesIA Enterprise."
             />
 
-
-            <div
-                className="
-          grid
-          grid-cols-1
-          gap-4
-          sm:grid-cols-2
-          xl:grid-cols-4
-        "
-            >
-                {reportOptions.map(
-                    (report) => {
-                        const selected =
-                            reportType ===
-                            report.id;
-
-                        return (
-                            <button
-                                key={report.id}
-                                type="button"
-                                onClick={() => {
-                                    setReportType(
-                                        report.id,
-                                    );
-
-                                    setConfigured(
-                                        false,
-                                    );
-                                }}
-                                className={`
-                  rounded-2xl
-                  border
-                  p-5
-                  text-left
-                  transition-all
-                  ${selected
-                                        ? `
-                        border-cyan-500
-                        bg-cyan-50
-                        shadow-sm
-                        ring-4
-                        ring-cyan-500/10
-                        dark:border-cyan-500
-                        dark:bg-cyan-950/20
-                      `
-                                        : `
-                        border-slate-200
-                        bg-white
-                        hover:border-slate-300
-                        hover:bg-slate-50
-                        dark:border-slate-800
-                        dark:bg-slate-900
-                        dark:hover:border-slate-700
-                        dark:hover:bg-slate-800/50
-                      `
-                                    }
-                `}
-                            >
-                                <span
-                                    className={`
-                    inline-flex
-                    rounded-lg
-                    px-2.5
-                    py-1
-                    text-xs
-                    font-bold
-                    ${selected
-                                            ? `
-                          bg-cyan-100
-                          text-cyan-800
-                          dark:bg-cyan-400/10
-                          dark:text-cyan-300
-                        `
-                                            : `
-                          bg-slate-100
-                          text-slate-600
-                          dark:bg-slate-800
-                          dark:text-slate-300
-                        `
-                                        }
-                  `}
-                                >
-                                    {report.label}
-                                </span>
-
-                                <h2
-                                    className="
-                    mt-4
-                    text-base
-                    font-bold
-                    text-slate-950
-                    dark:text-white
-                  "
-                                >
-                                    {report.title}
-                                </h2>
-
-                                <p
-                                    className="
-                    mt-2
-                    text-sm
-                    leading-6
-                    text-slate-500
-                    dark:text-slate-400
-                  "
-                                >
-                                    {report.description}
-                                </p>
-                            </button>
-                        );
-                    },
-                )}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                {reportOptions.map((option) => (
+                    <button
+                        key={option.id}
+                        type="button"
+                        disabled={busy}
+                        onClick={() => {
+                            setReportType(option.id);
+                            invalidate();
+                        }}
+                        className={`rounded-2xl border p-5 text-left transition-colors ${reportType === option.id
+                            ? "border-cyan-500 bg-cyan-50 dark:bg-cyan-950/20"
+                            : "border-slate-200 bg-white hover:border-cyan-300 dark:border-slate-800 dark:bg-slate-900"
+                            }`}
+                    >
+                        <span className="text-xs font-bold text-cyan-700 dark:text-cyan-300">
+                            {option.label}
+                        </span>
+                        <h2 className="mt-3 font-bold text-slate-950 dark:text-white">
+                            {option.title}
+                        </h2>
+                        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                            {option.description}
+                        </p>
+                    </button>
+                ))}
             </div>
 
-
-            <div
-                className="
-          grid
-          grid-cols-1
-          gap-6
-          xl:grid-cols-[minmax(0,1.5fr)_minmax(300px,0.7fr)]
-        "
-            >
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(300px,0.7fr)]">
                 <Card
                     title="Configuración"
-                    subtitle="Define los parámetros que utilizará el reporte."
+                    subtitle={`Filtros para ${selectedReport.title.toLowerCase()}.`}
                 >
-                    <div className="space-y-6">
-                        <div
-                            className="
-                rounded-xl
-                border
-                border-cyan-200
-                bg-cyan-50
-                p-4
-                dark:border-cyan-900/60
-                dark:bg-cyan-950/20
-              "
-                        >
-                            <p
-                                className="
-                  text-xs
-                  font-bold
-                  uppercase
-                  tracking-[0.1em]
-                  text-cyan-700
-                  dark:text-cyan-300
-                "
-                            >
-                                Reporte seleccionado
-                            </p>
-
-                            <h3
-                                className="
-                  mt-2
-                  font-bold
-                  text-slate-950
-                  dark:text-white
-                "
-                            >
-                                {selectedReport.title}
-                            </h3>
-
-                            <p
-                                className="
-                  mt-1
-                  text-sm
-                  leading-6
-                  text-slate-600
-                  dark:text-slate-300
-                "
-                            >
-                                {
-                                    selectedReport.description
-                                }
-                            </p>
-                        </div>
-
-
-                        <div
-                            className="
-                grid
-                grid-cols-1
-                gap-5
-                md:grid-cols-2
-              "
-                        >
-                            <div>
-                                <label
-                                    htmlFor="report-start-date"
-                                    className="
-                    mb-2
-                    block
-                    text-sm
-                    font-semibold
-                    text-slate-700
-                    dark:text-slate-200
-                  "
-                                >
-                                    Fecha inicial
-                                </label>
-
+                    <div className="space-y-5">
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            <label className={`block text-sm font-semibold ${secondaryText}`}>
+                                Fecha inicial
                                 <input
-                                    id="report-start-date"
+                                    aria-label="Fecha inicial"
                                     type="date"
                                     value={startDate}
+                                    disabled={busy}
                                     onChange={(event) => {
-                                        setStartDate(
-                                            event.target.value,
-                                        );
-
-                                        setConfigured(
-                                            false,
-                                        );
+                                        setStartDate(event.target.value);
+                                        invalidate();
                                     }}
-                                    className={
-                                        inputClasses
-                                    }
+                                    className={`mt-2 ${inputClass}`}
                                 />
-                            </div>
+                            </label>
 
-
-                            <div>
-                                <label
-                                    htmlFor="report-end-date"
-                                    className="
-                    mb-2
-                    block
-                    text-sm
-                    font-semibold
-                    text-slate-700
-                    dark:text-slate-200
-                  "
-                                >
-                                    Fecha final
-                                </label>
-
+                            <label className={`block text-sm font-semibold ${secondaryText}`}>
+                                Fecha final
                                 <input
-                                    id="report-end-date"
+                                    aria-label="Fecha final"
                                     type="date"
                                     value={endDate}
+                                    disabled={busy}
                                     onChange={(event) => {
-                                        setEndDate(
-                                            event.target.value,
-                                        );
-
-                                        setConfigured(
-                                            false,
-                                        );
+                                        setEndDate(event.target.value);
+                                        invalidate();
                                     }}
-                                    className={
-                                        inputClasses
-                                    }
+                                    className={`mt-2 ${inputClass}`}
                                 />
-                            </div>
+                            </label>
                         </div>
 
+                        {!isInventory && (
+                            <div className="grid gap-4 sm:grid-cols-2">
+                                <label className={`block text-sm font-semibold ${secondaryText}`}>
+                                    ID de sucursal (opcional)
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        step="1"
+                                        value={branchId}
+                                        disabled={busy}
+                                        onChange={(event) => {
+                                            setBranchId(event.target.value);
+                                            invalidate();
+                                        }}
+                                        className={`mt-2 ${inputClass}`}
+                                        placeholder="Todas"
+                                    />
+                                </label>
+                                <label className={`block text-sm font-semibold ${secondaryText}`}>
+                                    ID de vendedor (opcional)
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        step="1"
+                                        value={sellerId}
+                                        disabled={busy}
+                                        onChange={(event) => {
+                                            setSellerId(event.target.value);
+                                            invalidate();
+                                        }}
+                                        className={`mt-2 ${inputClass}`}
+                                        placeholder="Todos"
+                                    />
+                                </label>
+                            </div>
+                        )}
 
-                        <div
-                            className="
-                flex
-                flex-col
-                gap-3
-                border-t
-                border-slate-100
-                pt-5
-                sm:flex-row
-                sm:justify-end
-                dark:border-slate-800
-              "
-                        >
+                        {(isInventory || isAnalytics) && (
+                            <label className={`block text-sm font-semibold ${secondaryText}`}>
+                                ID de categoría (opcional)
+                                <input
+                                    type="number"
+                                    min="1"
+                                    step="1"
+                                    value={categoryId}
+                                    disabled={busy}
+                                    onChange={(event) => {
+                                        setCategoryId(event.target.value);
+                                        invalidate();
+                                    }}
+                                    className={`mt-2 ${inputClass}`}
+                                    placeholder="Todas"
+                                />
+                            </label>
+                        )}
+
+                        {isInventory && (
+                            <label className={`block text-sm font-semibold ${secondaryText}`}>
+                                Umbral de stock bajo
+                                <input
+                                    type="number"
+                                    min="0"
+                                    step="1"
+                                    value={stockThreshold}
+                                    disabled={busy}
+                                    onChange={(event) => {
+                                        setStockThreshold(event.target.value);
+                                        invalidate();
+                                    }}
+                                    className={`mt-2 ${inputClass}`}
+                                />
+                            </label>
+                        )}
+
+                        {(isInventory || isCustomers) && (
+                            <label className={`flex items-center gap-3 text-sm ${secondaryText}`}>
+                                <input
+                                    type="checkbox"
+                                    checked={includeInactive}
+                                    disabled={busy}
+                                    onChange={(event) => {
+                                        setIncludeInactive(event.target.checked);
+                                        invalidate();
+                                    }}
+                                />
+                                Incluir registros inactivos
+                            </label>
+                        )}
+
+                        <div className="flex flex-wrap justify-end gap-3 border-t border-slate-200 pt-5 dark:border-slate-800">
                             <Button
                                 variant="secondary"
                                 onClick={() => {
                                     setStartDate("");
                                     setEndDate("");
-                                    setConfigured(false);
+                                    setBranchId("");
+                                    setSellerId("");
+                                    setCategoryId("");
+                                    setStockThreshold("5");
+                                    setIncludeInactive(false);
+                                    invalidate();
                                 }}
                             >
                                 Limpiar
                             </Button>
-
-                            <Button
-                                onClick={
-                                    handlePrepareReport
-                                }
-                            >
-                                Preparar reporte
+                            <Button onClick={handleConsult}>
+                                {loading ? "Consultando..." : "Consultar reporte"}
                             </Button>
                         </div>
                     </div>
                 </Card>
 
-
                 <Card
                     title="Exportación"
-                    subtitle="Formatos disponibles próximamente."
+                    subtitle="Descarga los datos del período seleccionado."
                 >
                     <div className="space-y-3">
-                        <ExportOption
-                            title="Documento PDF"
-                            description="Reporte listo para presentación o impresión."
-                            extension=".pdf"
-                        />
+                        {(["pdf", "xlsx", "csv"] as const).map((format) => {
+                            const extension = getReportExtension(reportType, format);
+                            const label =
+                                format === "pdf"
+                                    ? "Documento PDF"
+                                    : format === "xlsx"
+                                        ? "Hoja de cálculo Excel"
+                                        : extension === "zip"
+                                            ? "Archivos CSV comprimidos"
+                                            : "Archivo CSV";
 
-                        <ExportOption
-                            title="Hoja de cálculo"
-                            description="Datos estructurados para análisis adicional."
-                            extension=".xlsx"
-                        />
-
-                        <ExportOption
-                            title="Archivo CSV"
-                            description="Datos tabulares compatibles con otras herramientas."
-                            extension=".csv"
-                        />
-                    </div>
-
-                    <div
-                        className="
-              mt-5
-              rounded-xl
-              border
-              border-slate-200
-              bg-slate-50
-              p-4
-              dark:border-slate-800
-              dark:bg-slate-950/40
-            "
-                    >
-                        <p
-                            className="
-                text-xs
-                leading-5
-                text-slate-500
-                dark:text-slate-400
-              "
-                        >
-                            La exportación se habilitará
-                            cuando conectemos este módulo
-                            con los endpoints de reportes
-                            del backend.
-                        </p>
+                            return (
+                                <button
+                                    key={format}
+                                    type="button"
+                                    disabled={busy}
+                                    onClick={() => void handleExport(format)}
+                                    className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 p-4 text-left hover:border-cyan-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-800"
+                                >
+                                    <div>
+                                        <p className="text-sm font-bold text-slate-900 dark:text-white">
+                                            {exporting === format ? "Descargando..." : label}
+                                        </p>
+                                        <p className={`mt-1 text-xs ${secondaryText}`}>
+                                            Descargar .{extension}
+                                        </p>
+                                    </div>
+                                    <span className="text-xs font-bold uppercase text-cyan-700 dark:text-cyan-300">
+                                        {extension}
+                                    </span>
+                                </button>
+                            );
+                        })}
                     </div>
                 </Card>
             </div>
 
-
-            {configured && (
-                <div
-                    className="
-            rounded-2xl
-            border
-            border-emerald-200
-            bg-emerald-50
-            p-5
-            dark:border-emerald-900/60
-            dark:bg-emerald-950/20
-          "
-                >
-                    <div
-                        className="
-              flex
-              items-start
-              gap-3
-            "
-                    >
-                        <div
-                            className="
-                grid
-                h-9
-                w-9
-                shrink-0
-                place-items-center
-                rounded-lg
-                bg-emerald-100
-                font-bold
-                text-emerald-700
-                dark:bg-emerald-400/10
-                dark:text-emerald-300
-              "
-                        >
-                            ✓
-                        </div>
-
-                        <div>
-                            <h3
-                                className="
-                  font-bold
-                  text-slate-900
-                  dark:text-slate-100
-                "
-                            >
-                                Configuración preparada
-                            </h3>
-
-                            <p
-                                className="
-                  mt-1
-                  text-sm
-                  leading-6
-                  text-slate-600
-                  dark:text-slate-300
-                "
-                            >
-                                El módulo ya tiene definidos
-                                los parámetros de{" "}
-                                <strong>
-                                    {
-                                        selectedReport.title
-                                    }
-                                </strong>
-                                . El siguiente paso será
-                                conectar esta configuración
-                                con datos reales y la
-                                generación de archivos.
-                            </p>
-                        </div>
-                    </div>
+            {error && (
+                <div role="alert" className="rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/30 dark:text-red-200">
+                    {error}
                 </div>
             )}
+
+            {notice && (
+                <div role="status" className="rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
+                    {notice}
+                </div>
+            )}
+
+            {report && (
+                <Card
+                    title={`Vista previa — ${selectedReport.title}`}
+                    subtitle="Datos obtenidos del backend. La descarga contiene el reporte completo."
+                >
+                    <ReportPreview data={report} />
+                </Card>
+            )}
+            <ReportExplorer
+                key={`${reportType}-${startDate}-${endDate}-${branchId}-${sellerId}-${categoryId}-${stockThreshold}-${includeInactive}`}
+                filters={
+                    report && startDate && endDate
+                        ? {
+                            date_from: startDate,
+                            date_to: endDate,
+                            branch_id: branchId ? Number(branchId) : null,
+                            seller_id: sellerId ? Number(sellerId) : null,
+                            category_id: categoryId ? Number(categoryId) : null,
+                            stock_threshold: Number(stockThreshold),
+                            include_inactive: includeInactive,
+                        }
+                        : null
+                }
+            />
         </section>
-    );
-}
-
-
-interface ExportOptionProps {
-    title: string;
-    description: string;
-    extension: string;
-}
-
-
-function ExportOption({
-    title,
-    description,
-    extension,
-}: ExportOptionProps) {
-    return (
-        <div
-            className="
-        flex
-        items-center
-        justify-between
-        gap-4
-        rounded-xl
-        border
-        border-slate-200
-        bg-white
-        p-4
-        dark:border-slate-800
-        dark:bg-slate-950/30
-      "
-        >
-            <div className="min-w-0">
-                <p
-                    className="
-            text-sm
-            font-bold
-            text-slate-900
-            dark:text-slate-100
-          "
-                >
-                    {title}
-                </p>
-
-                <p
-                    className="
-            mt-1
-            text-xs
-            leading-5
-            text-slate-500
-            dark:text-slate-400
-          "
-                >
-                    {description}
-                </p>
-            </div>
-
-            <span
-                className="
-          shrink-0
-          rounded-lg
-          bg-slate-100
-          px-2.5
-          py-1.5
-          font-mono
-          text-xs
-          font-bold
-          text-slate-600
-          dark:bg-slate-800
-          dark:text-slate-300
-        "
-            >
-                {extension}
-            </span>
-        </div>
     );
 }
