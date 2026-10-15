@@ -32,7 +32,8 @@ class StatisticalAnalysis(Base):
                 'COMPARE',
                 'RANDOM_VARIABLE',
                 'PROBABILITY',
-                'BAYES'
+                'BAYES',
+                'COMMERCIAL_INSIGHTS'
             )
             """,
             name="statistical_analyses_type_check",
