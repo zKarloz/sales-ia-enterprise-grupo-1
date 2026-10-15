@@ -1,58 +1,23 @@
-import {
-  useState,
-} from "react";
-
-import {
-  Outlet,
-} from "react-router-dom";
-
+import { useState } from "react";
+import { Outlet } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 
-
 export default function MainLayout() {
-  const [
-    sidebarOpen,
-    setSidebarOpen,
-  ] = useState(false);
-
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarExpanded, setSidebarExpanded] = useState(false);
 
   return (
-    <div
-      className="
-        min-h-screen
-        bg-slate-50
-        text-slate-900
-        transition-colors
-        duration-200
-        dark:bg-slate-950
-        dark:text-slate-100
-      "
-    >
+    <div className="min-h-screen bg-slate-50 text-slate-900 transition-colors duration-200 dark:bg-slate-950 dark:text-slate-100">
       <Sidebar
         open={sidebarOpen}
-        onClose={() =>
-          setSidebarOpen(false)
-        }
+        onClose={() => setSidebarOpen(false)}
+        expanded={sidebarExpanded}
+        onToggleExpanded={() => setSidebarExpanded((current) => !current)}
       />
-
-      <div className="min-h-screen lg:pl-64">
-        <Topbar
-          onMenuClick={() =>
-            setSidebarOpen(true)
-          }
-        />
-
-        <main
-          className="
-            mx-auto
-            w-full
-            max-w-[1600px]
-            p-4
-            sm:p-6
-            lg:p-8
-          "
-        >
+      <div className={`min-h-screen transition-[padding] duration-200 ease-out motion-reduce:transition-none ${sidebarExpanded ? "lg:pl-64" : "lg:pl-20"}`}>
+        <Topbar onMenuClick={() => setSidebarOpen(true)} />
+        <main className="mx-auto w-full max-w-[1600px] p-4 sm:p-6 lg:p-8">
           <Outlet />
         </main>
       </div>
