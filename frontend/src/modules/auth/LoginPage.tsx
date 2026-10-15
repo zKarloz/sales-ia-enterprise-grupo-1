@@ -9,6 +9,7 @@ import {
 } from "react-router-dom";
 
 import Button from "../../components/Button";
+import BrandLogo from "../../components/BrandLogo";
 import ErrorState from "../../components/ErrorState";
 
 import { useAuth } from "../../context/AuthContext";
@@ -46,7 +47,7 @@ export default function LoginPage() {
     if (user) {
         return (
             <Navigate
-                to="/"
+                to="/dashboard"
                 replace
             />
         );
@@ -68,7 +69,7 @@ export default function LoginPage() {
             );
 
             navigate(
-                "/",
+                "/dashboard",
                 {
                     replace: true,
                 },
@@ -155,8 +156,7 @@ export default function LoginPage() {
           lg:grid-cols-[1.05fr_1fr]
         "
             >
-                <div
-                    className="
+                <div className="
             hidden
             flex-col
             justify-between
@@ -181,9 +181,8 @@ export default function LoginPage() {
                 text-slate-950
                 shadow-lg
                 shadow-cyan-950/30
-              "
-                        >
-                            S
+              ">
+                            <BrandLogo size={44} />
                         </div>
 
                         <p
@@ -225,8 +224,7 @@ export default function LoginPage() {
                         </p>
                     </div>
 
-                    <div
-                        className="
+                    <div className="
               border-t
               border-white/10
               pt-6
@@ -270,10 +268,9 @@ export default function LoginPage() {
                   font-black
                   text-slate-950
                   lg:hidden
-                "
-                            >
-                                S
-                            </div>
+                ">
+                            <BrandLogo size={44} />
+                        </div>
 
                             <p
                                 className="

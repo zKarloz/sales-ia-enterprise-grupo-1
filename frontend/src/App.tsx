@@ -24,6 +24,7 @@ import {
 // ============================================================
 
 import LoginPage from "./modules/auth/LoginPage";
+import LandingPage from "./modules/landing/LandingPage";
 import DashboardPage from "./modules/dashboard/DashboardPage";
 
 import CustomersPage from "./modules/customers/CustomersPage";
@@ -53,10 +54,8 @@ function App() {
               Ruta pública de inicio de sesión.
           ================================================== */}
 
-          <Route
-            path="/login"
-            element={<LoginPage />}
-          />
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<LoginPage />} />
 
 
           {/* ==================================================
@@ -73,7 +72,7 @@ function App() {
               ============================================== */}
 
               <Route
-                path="/"
+                path="/dashboard"
                 element={<DashboardPage />}
               />
 
