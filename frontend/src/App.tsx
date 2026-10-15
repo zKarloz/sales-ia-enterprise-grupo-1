@@ -9,7 +9,6 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import RoleRoute from "./components/RoleRoute";
 
 import { AuthProvider } from "./context/AuthContext";
-
 import MainLayout from "./layouts/MainLayout";
 
 import {
@@ -20,28 +19,69 @@ import {
   ROLE_WAREHOUSE,
 } from "./constants/roles";
 
-import AnalyticsPage from "./modules/analytics/AnalyticsPage";
+// ============================================================
+// IMPORTACIÓN DE PÁGINAS POR MÓDULO
+// ============================================================
+
 import LoginPage from "./modules/auth/LoginPage";
-import CustomersPage from "./modules/customers/CustomersPage";
 import DashboardPage from "./modules/dashboard/DashboardPage";
-import InventoryPage from "./modules/inventory/InventoryPage";
+
+import CustomersPage from "./modules/customers/CustomersPage";
+
 import ProductsPage from "./modules/products/ProductsPage";
 import CategoriesPage from "./modules/categories/CategoriesPage";
-import ReportsPage from "./modules/reports/ReportsPage";
-import SalesPage from "./modules/sales/SalesPage";
 import SuppliersPage from "./modules/suppliers/SuppliersPage";
+import InventoryPage from "./modules/inventory/InventoryPage";
+
+import SalesPage from "./modules/sales/SalesPage";
+
 import StatisticsPage from "./modules/statistics/StatisticsPage";
+import AnalyticsPage from "./modules/analytics/AnalyticsPage";
+import InsightsPage from "./modules/insights/InsightsPage";
+
+import ReportsPage from "./modules/reports/ReportsPage";
+
 
 function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          <Route path="/login" element={<LoginPage />} />
+
+          {/* ==================================================
+              MÓDULO: AUTENTICACIÓN
+              Ruta pública de inicio de sesión.
+          ================================================== */}
+
+          <Route
+            path="/login"
+            element={<LoginPage />}
+          />
+
+
+          {/* ==================================================
+              RUTAS PRIVADAS
+              Requieren una sesión autenticada.
+          ================================================== */}
 
           <Route element={<ProtectedRoute />}>
             <Route element={<MainLayout />}>
-              <Route path="/" element={<DashboardPage />} />
+
+              {/* ==============================================
+                  MÓDULO: DASHBOARD
+                  Disponible para usuarios autenticados.
+              ============================================== */}
+
+              <Route
+                path="/"
+                element={<DashboardPage />}
+              />
+
+
+              {/* ==============================================
+                  MÓDULO: CLIENTES
+                  Roles: Administrador y Vendedor.
+              ============================================== */}
 
               <Route
                 element={
@@ -59,6 +99,12 @@ function App() {
                 />
               </Route>
 
+
+              {/* ==============================================
+                  MÓDULOS: CATÁLOGOS E INVENTARIO
+                  Roles: Administrador y Almacén.
+              ============================================== */}
+
               <Route
                 element={
                   <RoleRoute
@@ -69,23 +115,36 @@ function App() {
                   />
                 }
               >
+                {/* Módulo: Productos */}
                 <Route
                   path="/productos"
                   element={<ProductsPage />}
                 />
+
+                {/* Módulo: Categorías */}
                 <Route
                   path="/categorias"
                   element={<CategoriesPage />}
                 />
+
+                {/* Módulo: Proveedores */}
                 <Route
                   path="/proveedores"
                   element={<SuppliersPage />}
                 />
+
+                {/* Módulo: Inventario */}
                 <Route
                   path="/inventario"
                   element={<InventoryPage />}
                 />
               </Route>
+
+
+              {/* ==============================================
+                  MÓDULO: VENTAS
+                  Roles: Administrador, Gerente y Vendedor.
+              ============================================== */}
 
               <Route
                 element={
@@ -104,6 +163,12 @@ function App() {
                 />
               </Route>
 
+
+              {/* ==============================================
+                  MÓDULO: ESTADÍSTICA
+                  Roles: Administrador y Analista.
+              ============================================== */}
+
               <Route
                 element={
                   <RoleRoute
@@ -119,6 +184,12 @@ function App() {
                   element={<StatisticsPage />}
                 />
               </Route>
+
+
+              {/* ==============================================
+                  MÓDULO: ANALYTICS — FASE 10
+                  Roles: Administrador, Gerente y Analista.
+              ============================================== */}
 
               <Route
                 element={
@@ -137,6 +208,41 @@ function App() {
                 />
               </Route>
 
+
+              {/* ==============================================
+                  MÓDULO: INSIGHTS — FASE 11
+                  Roles: Administrador, Gerente y Analista.
+
+                  Generación:
+                    Administrador y Analista.
+
+                  Consulta:
+                    Administrador, Gerente y Analista.
+              ============================================== */}
+
+              <Route
+                element={
+                  <RoleRoute
+                    allowedRoles={[
+                      ROLE_ADMIN,
+                      ROLE_MANAGER,
+                      ROLE_ANALYST,
+                    ]}
+                  />
+                }
+              >
+                <Route
+                  path="/insights"
+                  element={<InsightsPage />}
+                />
+              </Route>
+
+
+              {/* ==============================================
+                  MÓDULO: REPORTES — FASE 12
+                  Roles: Administrador y Gerente.
+              ============================================== */}
+
               <Route
                 element={
                   <RoleRoute
@@ -152,13 +258,21 @@ function App() {
                   element={<ReportsPage />}
                 />
               </Route>
+
             </Route>
           </Route>
+
+
+          {/* ==================================================
+              RUTA DE RESPALDO
+              Redirige rutas desconocidas al Dashboard.
+          ================================================== */}
 
           <Route
             path="*"
             element={<Navigate to="/" replace />}
           />
+
         </Routes>
       </AuthProvider>
     </BrowserRouter>
