@@ -22,6 +22,7 @@ from app.api.routes import (
     statistics,
     suppliers,
     users,
+    reports,
 )
 from app.core.config import settings
 from app.core.database import engine
@@ -63,6 +64,7 @@ app.include_router(statistics.router, prefix="/api")
 app.include_router(random_variables.router, prefix="/api")
 app.include_router(probability.router, prefix="/api")
 
+app.include_router(reports.router, prefix="/api")
 
 @app.get("/")
 def root():

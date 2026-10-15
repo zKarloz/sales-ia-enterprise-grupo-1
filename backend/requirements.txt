@@ -6,3 +6,6 @@ pydantic
 pydantic-settings
 PyJWT
 pwdlib[argon2]
+openpyxl
+reportlab
+pandas

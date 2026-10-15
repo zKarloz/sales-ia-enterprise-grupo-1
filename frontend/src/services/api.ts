@@ -98,3 +98,70 @@ export async function apiRequest<T>(
 
   return data as T;
 }
+
+/**
+ * Descarga archivos binarios protegidos mediante JWT.
+ *
+ * Conserva el manejo de expiración de sesión
+ * utilizado por apiRequest().
+ */
+export async function apiDownload(
+  endpoint: string,
+): Promise<Blob> {
+  const token = getAccessToken();
+
+  const headers = new Headers();
+
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  const response = await fetch(
+    `${API_URL}${endpoint}`,
+    {
+      method: "GET",
+      headers,
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    const data: unknown = await response
+      .json()
+      .catch(() => null);
+
+    if (
+      response.status === 401 &&
+      token &&
+      getAccessToken() === token
+    ) {
+      clearAccessToken();
+
+      window.dispatchEvent(
+        new Event(SESSION_EXPIRED_EVENT),
+      );
+    }
+
+    const details =
+      data !== null &&
+        typeof data === "object"
+        ? data as {
+          detail?: unknown;
+          message?: unknown;
+        }
+        : null;
+
+    const message =
+      response.status === 401
+        ? "Tu sesión expiró. Inicia sesión nuevamente."
+        : typeof details?.detail === "string"
+          ? details.detail
+          : typeof details?.message === "string"
+            ? details.message
+            : "No se pudo descargar el reporte.";
+
+    throw new Error(message);
+  }
+
+  return response.blob();
+}
