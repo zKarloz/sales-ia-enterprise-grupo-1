@@ -1,378 +1,145 @@
-import { useMemo, useState } from "react";
-
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Plus, Search } from "lucide-react";
+import TablePagination from "../../components/ui/TablePagination";
 import Button from "../../components/Button";
 import Card from "../../components/Card";
 import EmptyState from "../../components/EmptyState";
 import ErrorState from "../../components/ErrorState";
 import LoadingState from "../../components/LoadingState";
 import PageHeader from "../../components/PageHeader";
-import SuccessState from "../../components/SuccessState";
-
+import Modal from "../../components/ui/Modal";
+import Tabs from "../../components/ui/Tabs";
+import { useToast } from "../../components/ui/ToastProvider";
 import { useApi } from "../../hooks/useApi";
-import { createInventoryMovement } from "../../services/inventoryService";
-
+import { createInventoryMovement, getMovementsPaginated, getInventorySummary } from "../../services/inventoryService";
+import { getProductsPaginated } from "../../services/productService";
 import type { Category } from "../../types/category";
-import type {
-  InventoryMovement,
-  InventoryMovementCreate,
-} from "../../types/inventory";
+import type { InventoryMovement, InventoryMovementCreate } from "../../types/inventory";
 import type { Product } from "../../types/product";
 import type { Supplier } from "../../types/supplier";
-
 import InventoryMovementForm from "./InventoryMovementForm";
 import InventoryTable from "./InventoryTable";
 import KardexTable from "./KardexTable";
 
-interface MetricCardProps {
-  label: string;
-  value: number;
-  helper: string;
-  tone?: "default" | "warning" | "danger";
-}
-
-const controlClasses = `
-  h-11 rounded-xl border border-slate-300 bg-white px-3.5 text-sm
-  text-slate-900 outline-none transition focus:border-cyan-500
-  focus:ring-4 focus:ring-cyan-500/10 dark:border-slate-700
-  dark:bg-slate-950 dark:text-slate-100
-`;
-
-function MetricCard({
-  label,
-  value,
-  helper,
-  tone = "default",
-}: MetricCardProps) {
-  const toneClasses = {
-    default: "bg-cyan-50 text-cyan-700 dark:bg-cyan-400/10 dark:text-cyan-300",
-    warning: "bg-amber-50 text-amber-700 dark:bg-amber-400/10 dark:text-amber-300",
-    danger: "bg-red-50 text-red-700 dark:bg-red-400/10 dark:text-red-300",
-  };
-
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-950/[0.03] dark:border-slate-800 dark:bg-slate-900">
-      <div className={`mb-4 inline-flex rounded-lg px-2.5 py-1 text-xs font-bold ${toneClasses[tone]}`}>
-        {label}
-      </div>
-      <p className="text-3xl font-bold tracking-tight text-slate-950 dark:text-white">
-        {value.toLocaleString("es-PE")}
-      </p>
-      <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-        {helper}
-      </p>
-    </div>
-  );
-}
-
+const input = "w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100";
 export default function InventoryPage() {
+  const { showToast } = useToast();
+  const [tab, setTab] = useState("stock");
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [actionError, setActionError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [movementProduct, setMovementProduct] = useState("all");
-  const [movementSupplier, setMovementSupplier] = useState("all");
-  const [movementType, setMovementType] = useState("all");
+  const [page, setPage] = useState(1);
+  const [stockPage, setStockPage] = useState(1);
+  const [stockItems, setStockItems] = useState<Product[]>([]);
+  const [stockTotal, setStockTotal] = useState(0);
+  const [stockLoading, setStockLoading] = useState(false);
+  const [stockError, setStockError] = useState("");
+  const [stockQuery, setStockQuery] = useState("");
+  const [stockSearch, setStockSearch] = useState("");
+  const [summaryRefresh, setSummaryRefresh] = useState(0);
+  const [movements, setMovements] = useState<InventoryMovement[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loadingMovements, setLoadingMovements] = useState(false);
+  const [movementError, setMovementError] = useState("");
+  const [movementType, setMovementType] = useState("");
+  const [productId, setProductId] = useState("");
+  const [supplierId, setSupplierId] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [refresh, setRefresh] = useState(0);
 
-  const {
-    data: products,
-    loading: productsLoading,
-    error: productsError,
-    refetch: refetchProducts,
-  } = useApi<Product[]>("/api/products?include_inactive=true");
+  // Sólo se descarga el catálogo completo cuando el Kardex necesita resolver nombres históricos.
+  const { data: products, error: productsError } = useApi<Product[]>("/api/products?include_inactive=true", undefined, tab !== "stock");
+  const { data: categories, error: categoriesError } = useApi<Category[]>("/api/categories");
+  const { data: suppliers, error: suppliersError } = useApi<Supplier[]>("/api/suppliers?include_inactive=true");
+  const productList = useMemo(() => products ?? [], [products]);
+  const supplierList = useMemo(() => suppliers ?? [], [suppliers]);
+  const categoryList = useMemo(() => categories ?? [], [categories]);
+  const [stockSummary, setStockSummary] = useState({ products: 0, units: 0, low: 0, empty: 0 });
 
-  const {
-    data: categories,
-    loading: categoriesLoading,
-    error: categoriesError,
-  } = useApi<Category[]>("/api/categories");
+  useEffect(() => {
+    const timer = window.setTimeout(() => { setStockSearch(stockQuery.trim()); setStockPage(1); }, 300);
+    return () => window.clearTimeout(timer);
+  }, [stockQuery]);
+  useEffect(() => {
+    const controller = new AbortController();
+    void getInventorySummary(controller.signal).then(setStockSummary)
+      .catch(() => { /* The stock table exposes its own errors separately. */ });
+    return () => controller.abort();
+  }, [summaryRefresh]);
+  useEffect(() => {
+    if (tab !== "stock") return;
+    const controller = new AbortController();
+    setStockLoading(true); setStockError("");
+    void getProductsPaginated({ page: stockPage, pageSize: 7, search: stockSearch, statusFilter: "active" }, controller.signal)
+      .then(result => { if (!controller.signal.aborted) { setStockItems(result.items); setStockTotal(result.total); } })
+      .catch(err => { if (!controller.signal.aborted) setStockError(err instanceof Error ? err.message : "No se pudieron cargar las existencias."); })
+      .finally(() => { if (!controller.signal.aborted) setStockLoading(false); });
+    return () => controller.abort();
+  }, [tab, stockPage, stockSearch, summaryRefresh]);
 
-  const {
-    data: suppliers,
-    loading: suppliersLoading,
-    error: suppliersError,
-  } = useApi<Supplier[]>("/api/suppliers?include_inactive=true");
-
-  const {
-    data: movements,
-    loading: movementsLoading,
-    error: movementsError,
-    refetch: refetchMovements,
-  } = useApi<InventoryMovement[]>("/api/inventory");
-
-  const productList = products ?? [];
-  const categoryList = categories ?? [];
-  const supplierList = suppliers ?? [];
-  const movementList = movements ?? [];
-
-  const activeProducts = productList.filter((product) => product.is_active);
-  const activeSuppliers = supplierList.filter((supplier) => supplier.is_active);
-
-  const totalProducts = activeProducts.length;
-  const totalUnits = activeProducts.reduce(
-    (total, product) => total + product.stock,
-    0,
-  );
-  const lowStock = activeProducts.filter(
-    (product) => product.stock > 0 && product.stock <= 10,
-  ).length;
-  const outOfStock = activeProducts.filter(
-    (product) => product.stock === 0,
-  ).length;
-
-  const loading =
-    productsLoading ||
-    categoriesLoading ||
-    suppliersLoading ||
-    movementsLoading;
-
-  const error =
-    productsError ||
-    categoriesError ||
-    suppliersError ||
-    movementsError;
-
-  const filteredMovements = useMemo(() => {
-    return movementList.filter((movement) => {
-      const matchesProduct =
-        movementProduct === "all" ||
-        movement.product_id === Number(movementProduct);
-
-      const matchesSupplier =
-        movementSupplier === "all" ||
-        (movementSupplier === "none"
-          ? movement.supplier_id === null
-          : movement.supplier_id === Number(movementSupplier));
-
-      const matchesType =
-        movementType === "all" ||
-        movement.movement_type === movementType;
-
-      if (!matchesProduct || !matchesSupplier || !matchesType) {
-        return false;
-      }
-
-      if (!movement.created_at) {
-        return !dateFrom && !dateTo;
-      }
-
-      const movementDate = new Date(movement.created_at);
-
-      if (dateFrom) {
-        const from = new Date(`${dateFrom}T00:00:00`);
-        if (movementDate < from) {
-          return false;
-        }
-      }
-
-      if (dateTo) {
-        const to = new Date(`${dateTo}T23:59:59.999`);
-        if (movementDate > to) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-  }, [
-    movementList,
-    movementProduct,
-    movementSupplier,
-    movementType,
-    dateFrom,
-    dateTo,
-  ]);
-
-  async function handleCreateMovement(
-    movement: InventoryMovementCreate,
-  ) {
+  const loadMovements = useCallback((signal: AbortSignal) => getMovementsPaginated({
+    page, pageSize: 7, productId: productId ? Number(productId) : null,
+    supplierId: supplierId && supplierId !== "none" ? Number(supplierId) : null,
+    withoutSupplier: supplierId === "none",
+    movementType: movementType as "IN" | "OUT" | "ADJUSTMENT" | "",
+    dateFrom, dateTo,
+  }, signal), [page, productId, supplierId, movementType, dateFrom, dateTo]);
+  useEffect(() => {
+    if (tab === "stock") return;
+    const controller = new AbortController();
+    setLoadingMovements(true); setMovementError("");
+    void loadMovements(controller.signal).then(result => {
+      if (!controller.signal.aborted) { setMovements(result.items); setTotal(result.total); }
+    }).catch(e => { if (!controller.signal.aborted) setMovementError(e instanceof Error ? e.message : "No se pudieron cargar los movimientos de Kardex."); })
+      .finally(() => { if (!controller.signal.aborted) setLoadingMovements(false); });
+    return () => controller.abort();
+  }, [tab, loadMovements, refresh]);
+  async function create(movement: InventoryMovementCreate): Promise<boolean> {
+    setSaving(true);
     try {
-      setSaving(true);
-      setActionError(null);
-      setSuccessMessage(null);
-
       await createInventoryMovement(movement);
-
-      await Promise.all([
-        refetchProducts(),
-        refetchMovements(),
-      ]);
-
       setShowForm(false);
-      setSuccessMessage(
-        movement.movement_type === "IN"
-          ? "La entrada fue registrada correctamente en el Kardex."
-          : "La salida fue registrada correctamente en el Kardex.",
-      );
-    } catch (error) {
-      setActionError(
-        error instanceof Error
-          ? error.message
-          : "No se pudo registrar el movimiento.",
-      );
-    } finally {
-      setSaving(false);
-    }
+      setPage(1);
+      setRefresh(v => v + 1);
+      setSummaryRefresh(v => v + 1);
+      showToast(movement.movement_type === "IN" ? "Entrada de inventario registrada." : "Salida de inventario registrada.", { type: "success" });
+      return true;
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "No fue posible registrar el movimiento.", { type: "error" });
+      return false;
+    } finally { setSaving(false); }
   }
+  const resetPage = (set: (value: string) => void, value: string) => { set(value); setPage(1); };
+  return <section className="w-full space-y-6">
+    <PageHeader title="Inventario" description="Control de existencias y trazabilidad de movimientos." action={<Button onClick={() => setShowForm(true)}><Plus size={17} className="mr-1 inline" /> Registrar movimiento</Button>} />
+    <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+      {([["Productos activos", stockSummary.products], ["Unidades disponibles", stockSummary.units], ["Stock bajo (1–10)", stockSummary.low], ["Sin stock", stockSummary.empty]] as const).map(([name, value]) => <div key={name} className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"><p className="text-xs font-bold text-cyan-700 dark:text-cyan-400">{name}</p><p className="mt-2 text-2xl font-bold">{value.toLocaleString("es-PE")}</p></div>)}
+    </div>
 
-  return (
-    <section className="w-full space-y-6">
-      <PageHeader
-        title="Inventario"
-        description="Controla existencias y consulta la trazabilidad de movimientos mediante Kardex."
-        action={
-          <Button
-            onClick={() => {
-              setActionError(null);
-              setSuccessMessage(null);
-              setShowForm(true);
-            }}
-          >
-            + Registrar movimiento
-          </Button>
-        }
-      />
+    {(categoriesError || suppliersError) && <ErrorState message={categoriesError || suppliersError || "Error."} />}
+    <Tabs tabs={[{ id: "stock", label: "Existencias" }, { id: "kardex", label: "Movimientos de Kardex" }]} value={tab} onChange={setTab}>
+      {tab === "stock" ? <Card title="Existencias actuales" subtitle="Estado del stock de productos activos.">
+        <div className="mb-4 max-w-md"><label htmlFor="inv-stock-search" className="mb-1 block text-xs font-medium">Buscar por ID, SKU o nombre</label><div className="relative"><Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input id="inv-stock-search" value={stockQuery} onChange={e => setStockQuery(e.target.value)} className={`${input} pl-9`} placeholder="Buscar producto..." /></div></div>
+        {stockLoading ? <LoadingState message="Cargando existencias..." /> : stockError ? <ErrorState message={stockError} /> : stockItems.length ? <InventoryTable products={stockItems} categories={categoryList} /> : <EmptyState title="Sin productos" message="No se encontraron productos activos." />}
+        <TablePagination page={stockPage} total={stockTotal} noun="productos" loading={stockLoading} onPageChange={setStockPage} />
 
-      {actionError && <ErrorState message={actionError} />}
-      {successMessage && <SuccessState message={successMessage} />}
-
-      {showForm && (
-        <InventoryMovementForm
-          products={activeProducts}
-          suppliers={activeSuppliers}
-          onSubmit={handleCreateMovement}
-          onCancel={() => {
-            setActionError(null);
-            setShowForm(false);
-          }}
-          submitting={saving}
-        />
-      )}
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Productos" value={totalProducts} helper="Productos activos" />
-        <MetricCard label="Unidades" value={totalUnits} helper="Unidades disponibles" />
-        <MetricCard label="Stock bajo" value={lowStock} helper="Productos con 10 unidades o menos" tone="warning" />
-        <MetricCard label="Sin stock" value={outOfStock} helper="Productos agotados" tone="danger" />
-      </div>
-
-      {loading && <LoadingState message="Cargando inventario..." />}
-      {!loading && error && <ErrorState message={error} />}
-
-      {!loading && !error && activeProducts.length === 0 && (
-        <EmptyState
-          title="No hay productos activos"
-          message="No existen productos activos disponibles para inventario."
-        />
-      )}
-
-      {!loading && !error && activeProducts.length > 0 && (
-        <Card
-          title="Estado del inventario"
-          subtitle="Stock actual de los productos activos."
-        >
-          <InventoryTable
-            products={activeProducts}
-            categories={categoryList}
-          />
-        </Card>
-      )}
-
-      {!loading && !error && (
-        <Card
-          title="Kardex de inventario"
-          subtitle="Trazabilidad de entradas, salidas y ajustes registrados."
-        >
-          <div className="mb-6 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
-            <select
-              value={movementProduct}
-              onChange={(event) => setMovementProduct(event.target.value)}
-              className={controlClasses}
-            >
-              <option value="all">Todos los productos</option>
-              {productList.map((product) => (
-                <option key={product.id} value={product.id}>
-                  {product.sku} — {product.name}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={movementSupplier}
-              onChange={(event) => setMovementSupplier(event.target.value)}
-              className={controlClasses}
-            >
-              <option value="all">Todos los proveedores</option>
-              <option value="none">Sin proveedor</option>
-              {supplierList.map((supplier) => (
-                <option key={supplier.id} value={supplier.id}>
-                  {supplier.ruc} — {supplier.business_name}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={movementType}
-              onChange={(event) => setMovementType(event.target.value)}
-              className={controlClasses}
-            >
-              <option value="all">Todos los movimientos</option>
-              <option value="IN">Entradas</option>
-              <option value="OUT">Salidas</option>
-              <option value="ADJUSTMENT">Ajustes</option>
-            </select>
-
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={(event) => setDateFrom(event.target.value)}
-              aria-label="Fecha desde"
-              className={controlClasses}
-            />
-
-            <input
-              type="date"
-              value={dateTo}
-              onChange={(event) => setDateTo(event.target.value)}
-              aria-label="Fecha hasta"
-              className={controlClasses}
-            />
-          </div>
-
-          <div className="mb-4 flex flex-col gap-2 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between dark:text-slate-400">
-            <span>
-              {filteredMovements.length.toLocaleString("es-PE")} movimiento(s)
-            </span>
-
-            {(movementProduct !== "all" ||
-              movementSupplier !== "all" ||
-              movementType !== "all" ||
-              dateFrom ||
-              dateTo) && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMovementProduct("all");
-                    setMovementSupplier("all");
-                    setMovementType("all");
-                    setDateFrom("");
-                    setDateTo("");
-                  }}
-                  className="font-semibold text-cyan-700 hover:text-cyan-800 dark:text-cyan-400 dark:hover:text-cyan-300"
-                >
-                  Limpiar filtros
-                </button>
-              )}
-          </div>
-
-          <KardexTable
-            movements={filteredMovements}
-            products={productList}
-            suppliers={supplierList}
-          />
-        </Card>
-      )}
-    </section>
-  );
+      </Card> : <Card title="Movimientos de Kardex" subtitle="Entradas, salidas y ajustes con seguimiento del stock antes y después de cada movimiento.">
+        <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
+          <div><label className="mb-1 block text-xs" htmlFor="inv-product">ID del producto</label><div className="relative"><Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input id="inv-product" type="number" min="1" placeholder="Todos los productos" className={`${input} pl-9`} value={productId} onChange={e => resetPage(setProductId, e.target.value)} /></div></div>
+          <div><label className="mb-1 block text-xs" htmlFor="inv-supplier">Proveedor</label><select id="inv-supplier" className={input} value={supplierId} onChange={e => resetPage(setSupplierId, e.target.value)}><option value="">Todos</option><option value="none">Sin proveedor</option>{supplierList.map(s => <option key={s.id} value={s.id}>{s.business_name}</option>)}</select></div>
+          <div><label className="mb-1 block text-xs" htmlFor="inv-type">Tipo</label><select id="inv-type" className={input} value={movementType} onChange={e => resetPage(setMovementType, e.target.value)}><option value="">Todos</option><option value="IN">Entrada</option><option value="OUT">Salida</option><option value="ADJUSTMENT">Ajuste</option></select></div>
+          <div><label className="mb-1 block text-xs" htmlFor="inv-from">Desde (UTC)</label><input id="inv-from" type="date" className={input} value={dateFrom} onChange={e => resetPage(setDateFrom, e.target.value)} /></div>
+          <div><label className="mb-1 block text-xs" htmlFor="inv-to">Hasta (UTC)</label><input id="inv-to" type="date" className={input} value={dateTo} onChange={e => resetPage(setDateTo, e.target.value)} /></div>
+        </div>
+        {dateFrom && dateTo && dateFrom > dateTo ? <p role="alert" className="text-sm text-red-600">La fecha inicial no puede superar a la final.</p> : null}
+        {productsError && <ErrorState message={productsError} />}
+        {loadingMovements ? <LoadingState message="Cargando movimientos..." /> : movementError ? <ErrorState message={movementError} /> : movements.length === 0 ? <EmptyState title="Sin movimientos" message="No existen movimientos con estos filtros." /> : <KardexTable movements={movements} products={productList} suppliers={supplierList} />}
+        <TablePagination page={page} total={total} noun="movimientos" loading={loadingMovements} onPageChange={setPage} />
+      </Card>}
+    </Tabs>
+    <Modal open={showForm} onClose={() => { if (!saving) setShowForm(false); }} closeOnBackdrop={false} closeOnEscape={false} size="lg" title="Registrar movimiento" description="Registra una entrada o salida de stock y conserva su historial de movimientos.">
+      {showForm && <InventoryMovementForm suppliers={supplierList.filter(s => s.is_active)} onSubmit={create} onCancel={() => setShowForm(false)} submitting={saving} />}
+    </Modal>
+  </section>;
 }
+

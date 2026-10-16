@@ -86,3 +86,31 @@ class BayesResponse(BaseModel):
     event_b: str
 
     probability_a_given_b: Decimal
+
+
+class EmpiricalEvent(BaseModel):
+    variable_id: int = Field(gt=0)
+    operator: str = Field(pattern="^(eq|gt|gte|lt|lte)$")
+    value: str = Field(min_length=1, max_length=150)
+    model_config = ConfigDict(extra="forbid")
+
+
+class EmpiricalBayesRequest(BaseModel):
+    dataset_id: int = Field(gt=0)
+    event_a: EmpiricalEvent
+    event_b: EmpiricalEvent
+    model_config = ConfigDict(extra="forbid")
+
+
+class EmpiricalBayesResponse(BaseModel):
+    analysis_id: int
+    bayes_analysis_id: int
+    dataset_id: int
+    total: int
+    count_a: int
+    count_b: int
+    count_both: int
+    probability_a: Decimal
+    probability_b_given_a: Decimal
+    probability_b: Decimal
+    probability_a_given_b: Decimal

@@ -1,5 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
+from decimal import Decimal
 
 from app.api.dependencies.auth import get_current_user
 from app.api.dependencies.roles import require_roles
@@ -14,6 +16,8 @@ from app.services.sale_service import (
     create_sale,
     get_sale,
     list_sales,
+    paginate_sales,
+    sales_summary,
 )
 
 
@@ -36,6 +40,40 @@ def get_sales(
     """Lista las ventas registradas."""
 
     return list_sales(db)
+
+class SalePageResponse(BaseModel):
+    items: list[SaleResponse]
+    total: int
+    page: int
+    page_size: int
+    pages: int
+
+
+class SaleSummaryResponse(BaseModel):
+    operations: int
+    total_amount: Decimal
+    average_ticket: Decimal
+
+
+@router.get("/paginated", response_model=SalePageResponse)
+def get_sales_paginated(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=7, ge=1, le=100),
+    db: Session = Depends(get_db),
+    current_user: CurrentUserResponse = Depends(require_roles(ROLE_MANAGER, ROLE_SELLER)),
+):
+    """Consulta únicamente una página de ventas."""
+    return paginate_sales(db, page=page, page_size=page_size)
+
+
+@router.get("/summary", response_model=SaleSummaryResponse)
+def get_sales_summary(
+    db: Session = Depends(get_db),
+    current_user: CurrentUserResponse = Depends(require_roles(ROLE_MANAGER, ROLE_SELLER)),
+):
+    """Totales globales del módulo, no sólo de la página visible."""
+    return sales_summary(db)
+
 
 @router.get("/{sale_id}", response_model=SaleResponse)
 def get_sale_by_id(

@@ -69,3 +69,11 @@ class SupplierResponse(BaseModel):
     created_at: datetime | None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class SupplierPageResponse(BaseModel):
+    items: list[SupplierResponse]
+    total: int
+    page: int
+    page_size: int
+    pages: int

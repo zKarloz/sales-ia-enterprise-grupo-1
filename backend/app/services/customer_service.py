@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -104,6 +104,50 @@ def list_customers(
     return list(
         db.scalars(query).all()
     )
+
+
+
+def paginate_customers(
+    db: Session,
+    *,
+    page: int = 1,
+    page_size: int = 7,
+    search: str = "",
+    status_filter: str = "all",
+) -> tuple[list[Customer], int]:
+    """Filtra y pagina en PostgreSQL; nunca carga el catálogo completo."""
+    filters = []
+    if status_filter == "active":
+        filters.append(Customer.is_active.is_(True))
+    elif status_filter == "inactive":
+        filters.append(Customer.is_active.is_(False))
+
+    search = search.strip()
+    if search:
+        escaped = (
+            search.replace("\\", "\\\\")
+            .replace("%", "\\%")
+            .replace("_", "\\_")
+        )
+        pattern = f"%{escaped}%"
+        predicates = [
+            Customer.full_name.ilike(pattern, escape="\\"),
+            Customer.document_number.ilike(pattern, escape="\\"),
+        ]
+        if search.isascii() and search.isdigit() and len(search) <= 10 and int(search) <= 2_147_483_647:
+            predicates.append(Customer.id == int(search))
+        filters.append(or_(*predicates))
+
+    base = select(Customer).where(*filters)
+    total = db.scalar(
+        select(func.count()).select_from(Customer).where(*filters)
+    ) or 0
+    rows = list(db.scalars(
+        base.order_by(Customer.id)
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    ).all())
+    return rows, total
 
 
 def get_customer(

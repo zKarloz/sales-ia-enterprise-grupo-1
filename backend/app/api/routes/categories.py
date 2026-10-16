@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.dependencies.roles import require_roles
@@ -9,7 +10,7 @@ from app.core.roles import ROLE_MANAGER, ROLE_SELLER, ROLE_WAREHOUSE
 from app.schemas.category import CategoryCreate, CategoryResponse, CategoryUpdate
 from app.schemas.auth import CurrentUserResponse
 
-from app.services.category_service import create_category, delete_category, get_category, list_categories, update_category
+from app.services.category_service import create_category, delete_category, get_category, list_categories, paginate_categories, search_categories, update_category
 
 
 router = APIRouter(
@@ -32,6 +33,43 @@ def get_categories(
     """Lista las categorías."""
 
     return list_categories(db)
+
+
+@router.get("/search", response_model=list[CategoryResponse])
+def get_categories_search(
+    q: str = Query(default="", max_length=100),
+    limit: int = Query(default=5, ge=1, le=5),
+    db: Session = Depends(get_db),
+    current_user: CurrentUserResponse = Depends(
+        require_roles(ROLE_MANAGER, ROLE_SELLER, ROLE_WAREHOUSE)
+    ),
+):
+    """Devuelve hasta cinco categorías por nombre para selectores compactos."""
+    return search_categories(db, search=q, limit=limit)
+
+
+class CategoryPageResponse(BaseModel):
+    items: list[CategoryResponse]
+    total: int
+    page: int
+    page_size: int
+    pages: int
+
+
+@router.get("/paginated", response_model=CategoryPageResponse)
+def get_categories_paginated(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=7, ge=1, le=100),
+    search: str = Query(default="", max_length=100),
+    db: Session = Depends(get_db),
+    current_user: CurrentUserResponse = Depends(
+        require_roles(ROLE_MANAGER, ROLE_SELLER, ROLE_WAREHOUSE)
+    ),
+):
+    """Devuelve siete categorías por página con búsqueda por nombre o descripción."""
+    items, total = paginate_categories(db, page=page, page_size=page_size, search=search)
+    pages = max(1, (total + page_size - 1) // page_size)
+    return CategoryPageResponse(items=items, total=total, page=page, page_size=page_size, pages=pages)
 
 
 @router.get("/{category_id}", response_model=CategoryResponse)

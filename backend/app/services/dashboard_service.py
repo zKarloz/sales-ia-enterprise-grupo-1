@@ -50,7 +50,11 @@ def resolve_date_range(
 
     today = current.date()
 
-    if filters.period == "custom":
+    if filters.period == "day":
+        start_date = today
+        end_date = today + timedelta(days=1)
+
+    elif filters.period == "custom":
         start_date = filters.date_from
         end_date = filters.date_to + timedelta(days=1)
 

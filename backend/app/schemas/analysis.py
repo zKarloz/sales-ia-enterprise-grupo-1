@@ -104,3 +104,11 @@ class AnalysisDetailResponse(AnalysisResponse):
 
     random_variable: AnalysisRandomVariableResponse | None
     bayes_analysis: AnalysisBayesResponse | None
+
+
+class AnalysisPageResponse(BaseModel):
+    items: list[AnalysisResponse]
+    total: int
+    page: int
+    page_size: int
+    pages: int

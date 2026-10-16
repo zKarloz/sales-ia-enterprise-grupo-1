@@ -1,1184 +1,233 @@
-import {
-  useEffect,
-  useMemo,
-  useState,
-  type FormEvent,
-} from "react";
-
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { ArrowLeft, Building2, CheckCircle2, FileText, IdCard, Mail, MapPin, Phone, Plus, ReceiptText, Search, Trash2, UserRound } from "lucide-react";
 import Button from "../../components/Button";
-
-import {
-  getCustomerByDocument,
-} from "../../services/customerService";
-
-import type {
-  Customer,
-  CustomerDocumentType,
-} from "../../types/customer";
-
-import type {
-  Product,
-} from "../../types/product";
-
+import SearchPicker from "../../components/ui/SearchPicker";
+import CategorySearch from "./CategorySearch";
+import TablePagination from "../../components/ui/TablePagination";
+import ConfirmDialog from "../../components/ui/ConfirmDialog";
+import { getCustomer, getCustomerByDocument, getCustomersPaginated } from "../../services/customerService";
+import { getProductsPaginated } from "../../services/productService";
+import type { Customer, CustomerDocumentType } from "../../types/customer";
+import type { Product } from "../../types/product";
 import type { Branch } from "../../types/branch";
+import type { SaleCreate, SaleItemCreate } from "../../types/sale";
 
-import type {
-  SaleCreate,
-  SaleItemCreate,
-} from "../../types/sale";
-
-
-interface SaleFormProps {
+type SaleFormProps = {
   branches: Branch[];
-  customers: Customer[];
-  products: Product[];
   initialCustomerId?: number | null;
-
-  onSubmit: (
-    sale: SaleCreate,
-  ) => void | Promise<void>;
-
-  onRegisterCustomer: (
-    documentType: CustomerDocumentType,
-    documentNumber: string,
-  ) => void;
-
+  onSubmit: (sale: SaleCreate) => boolean | void | Promise<boolean | void>;
+  onRegisterCustomer: (type: CustomerDocumentType, number: string) => void;
   onCancel: () => void;
   submitting?: boolean;
-}
+};
+type CartItem = { product: Product; quantity: number };
+const input = "w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-cyan-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100";
+const label = "mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200";
+const money = (value: number) => `S/ ${value.toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-
-interface FormItem {
-  product_id: string;
-  quantity: string;
-}
-
-
-type LookupState =
-  | "idle"
-  | "found"
-  | "not-found"
-  | "inactive"
-  | "error";
-
-
-const controlClasses = `
-  h-11
-  w-full
-  rounded-xl
-  border
-  border-slate-300
-  bg-white
-  px-3.5
-  text-sm
-  text-slate-900
-  outline-none
-  transition
-  focus:border-cyan-500
-  focus:ring-4
-  focus:ring-cyan-500/10
-  disabled:cursor-not-allowed
-  disabled:bg-slate-100
-  disabled:opacity-70
-  dark:border-slate-700
-  dark:bg-slate-950
-  dark:text-slate-100
-  dark:disabled:bg-slate-900
-`;
-
-
-const labelClasses = `
-  mb-2
-  block
-  text-sm
-  font-semibold
-  text-slate-700
-  dark:text-slate-200
-`;
-
-
-export default function SaleForm({
-  branches,
-  customers,
-  products,
-  initialCustomerId = null,
-  onSubmit,
-  onRegisterCustomer,
-  onCancel,
-  submitting = false,
-}: SaleFormProps) {
-  const [branchId, setBranchId] = useState("");
-  const [customerId, setCustomerId] = useState("");
-  const [documentType, setDocumentType] =
-    useState<CustomerDocumentType>("DNI");
+export default function SaleForm({ branches, initialCustomerId = null, onSubmit, onRegisterCustomer, onCancel, submitting = false }: SaleFormProps) {
+  const [customer, setCustomer] = useState<Customer | null>(null);
+  const [customerPickerOpen, setCustomerPickerOpen] = useState(false);
+  const [documentType, setDocumentType] = useState<CustomerDocumentType>("DNI");
   const [documentNumber, setDocumentNumber] = useState("");
-  const [lookupState, setLookupState] =
-    useState<LookupState>("idle");
-  const [lookupMessage, setLookupMessage] = useState("");
-  const [lookupLoading, setLookupLoading] = useState(false);
-
+  const [customerError, setCustomerError] = useState("");
+  const [customerLoading, setCustomerLoading] = useState(false);
+  const [customerPage, setCustomerPage] = useState(1);
+  const [customerRows, setCustomerRows] = useState<Customer[]>([]);
+  const [customerTotal, setCustomerTotal] = useState(0);
+  const [customerTableLoading, setCustomerTableLoading] = useState(false);
+  const [customerTableError, setCustomerTableError] = useState("");
+  const [branchId, setBranchId] = useState("");
+  const [items, setItems] = useState<CartItem[]>([]);
+  const [showProductPicker, setShowProductPicker] = useState(false);
+  const [categoryId, setCategoryId] = useState<number | null>(null);
   const [paymentMethod, setPaymentMethod] = useState("EFECTIVO");
   const [paymentReference, setPaymentReference] = useState("");
   const [discountPercentage, setDiscountPercentage] = useState("0");
-
-  const [items, setItems] = useState<FormItem[]>([
-    {
-      product_id: "",
-      quantity: "1",
-    },
-  ]);
-
+  const [error, setError] = useState("");
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pending, setPending] = useState<SaleCreate | null>(null);
 
   useEffect(() => {
-    if (!initialCustomerId) {
-      return;
+    if (!initialCustomerId) return;
+    let active = true;
+    void getCustomer(initialCustomerId).then(result => {
+      if (!active) return;
+      if (!result.is_active) { setCustomerError("El cliente seleccionado está inactivo."); return; }
+      setCustomer(result); setCustomerPickerOpen(false);
+      setDocumentType(result.document_type ?? "DNI");
+      setDocumentNumber(result.document_number ?? "");
+    }).catch(() => { if (active) setCustomerError("No se pudo recuperar el cliente recién registrado."); });
+    return () => { active = false; };
+  }, [initialCustomerId]);
+
+  const customerSearch = useCallback(async (q: string, page: number, pageSize: number, signal: AbortSignal) => {
+    const data = await getCustomersPaginated({ page, pageSize, search: q, statusFilter: "active" }, signal);
+    return { items: data.items, total: data.total };
+  }, []);
+  useEffect(() => {
+    if (!customerPickerOpen) return;
+    const controller = new AbortController();
+    setCustomerTableLoading(true);
+    setCustomerTableError("");
+    void customerSearch("", customerPage, 7, controller.signal)
+      .then(data => { if (!controller.signal.aborted) { setCustomerRows(data.items); setCustomerTotal(data.total); } })
+      .catch(() => { if (!controller.signal.aborted) setCustomerTableError("No se pudieron cargar los clientes."); })
+      .finally(() => { if (!controller.signal.aborted) setCustomerTableLoading(false); });
+    return () => controller.abort();
+  }, [customerPickerOpen, customerPage, customerSearch]);
+  const productSearch = useCallback(async (q: string, page: number, pageSize: number, signal: AbortSignal) => {
+    const data = await getProductsPaginated({ page, pageSize, search: q, categoryId, statusFilter: "active" }, signal);
+    return { items: data.items, total: data.total };
+  }, [categoryId]);
+  const pickCustomer = (value: Customer) => {
+    setCustomer(value); setCustomerPickerOpen(false); setCustomerError("");
+    setDocumentType(value.document_type ?? "DNI"); setDocumentNumber(value.document_number ?? "");
+  };
+  const lookupCustomer = async () => {
+    const normalized = documentType === "DNI" || documentType === "RUC"
+      ? documentNumber.trim().replace(/[\s-]/g, "") : documentNumber.trim().toUpperCase();
+    setCustomer(null); setCustomerError("");
+    if (!normalized) { setCustomerError("Ingresa el documento del cliente."); return; }
+    if ((documentType === "DNI" && !/^\d{8}$/.test(normalized)) || (documentType === "RUC" && !/^\d{11}$/.test(normalized))) {
+      setCustomerError(documentType === "DNI" ? "El DNI requiere 8 dígitos." : "El RUC requiere 11 dígitos."); return;
     }
-
-    const customer = customers.find(
-      (item) => item.id === initialCustomerId,
-    );
-
-    if (!customer) {
-      return;
-    }
-
-    setCustomerId(String(customer.id));
-    setDocumentType(
-      customer.document_type ?? "DNI",
-    );
-    setDocumentNumber(
-      customer.document_number ?? "",
-    );
-    setLookupState("found");
-    setLookupMessage(
-      `Cliente seleccionado: ${customer.full_name}.`,
-    );
-  }, [initialCustomerId, customers]);
-
-
-  const selectedCustomer = useMemo(
-    () =>
-      customers.find(
-        (customer) =>
-          customer.id === Number(customerId),
-      ) ?? null,
-    [customers, customerId],
-  );
-
-
-  const productMap = useMemo(
-    () =>
-      new Map(
-        products.map((product) => [
-          product.id,
-          product,
-        ]),
-      ),
-    [products],
-  );
-
-
-  const estimatedSubtotal = useMemo(
-    () =>
-      items.reduce(
-        (total, item) => {
-          const product = productMap.get(
-            Number(item.product_id),
-          );
-
-          const quantity = Number(item.quantity);
-
-          if (
-            !product ||
-            !Number.isFinite(quantity) ||
-            quantity <= 0
-          ) {
-            return total;
-          }
-
-          return (
-            total +
-            Number(product.price) * quantity
-          );
-        },
-        0,
-      ),
-    [
-      items,
-      productMap,
-    ],
-  );
-
-  const numericDiscountPercentage =
-    Number(discountPercentage);
-
-  const validDiscountPercentage =
-    Number.isFinite(numericDiscountPercentage) &&
-      numericDiscountPercentage >= 0 &&
-      numericDiscountPercentage <= 100
-      ? numericDiscountPercentage
-      : 0;
-
-  const estimatedDiscountAmount =
-    estimatedSubtotal *
-    validDiscountPercentage /
-    100;
-
-  const estimatedTaxBase =
-    Math.max(
-      estimatedSubtotal -
-      estimatedDiscountAmount,
-      0,
-    );
-
-  const estimatedTaxPercentage = 18;
-
-  const estimatedTaxAmount =
-    estimatedTaxBase *
-    estimatedTaxPercentage /
-    100;
-
-  const estimatedTotal =
-    estimatedTaxBase +
-    estimatedTaxAmount;
-
-
-  function normalizeDocumentNumber(
-    value: string,
-  ) {
-    const trimmed = value.trim();
-
-    if (
-      documentType === "DNI" ||
-      documentType === "RUC"
-    ) {
-      return trimmed
-        .replace(/\s+/g, "")
-        .replace(/-/g, "");
-    }
-
-    return trimmed.toUpperCase();
-  }
-
-
-  async function handleCustomerLookup() {
-    const normalized =
-      normalizeDocumentNumber(
-        documentNumber,
-      );
-
-    setLookupState("idle");
-    setLookupMessage("");
-
-    if (!normalized) {
-      setLookupState("error");
-      setLookupMessage(
-        "Ingresa un número de documento para buscar.",
-      );
-      return;
-    }
-
-    if (
-      documentType === "DNI" &&
-      !/^\d{8}$/.test(normalized)
-    ) {
-      setLookupState("error");
-      setLookupMessage(
-        "El DNI debe tener 8 dígitos.",
-      );
-      return;
-    }
-
-    if (
-      documentType === "RUC" &&
-      !/^\d{11}$/.test(normalized)
-    ) {
-      setLookupState("error");
-      setLookupMessage(
-        "El RUC debe tener 11 dígitos.",
-      );
-      return;
-    }
-
+    setCustomerLoading(true);
     try {
-      setLookupLoading(true);
+      const result = await getCustomerByDocument(normalized);
+      if (!result) { setCustomerError("Cliente no encontrado. Puedes registrarlo."); return; }
+      if (!result.is_active) { setCustomerError("El cliente existe, pero está inactivo. Reactívalo desde Clientes."); return; }
+      if (result.document_type && result.document_type !== documentType) { setCustomerError("El documento pertenece a otro tipo de identificación."); return; }
+      pickCustomer(result);
+    } catch (e) { setCustomerError(e instanceof Error ? e.message : "No se pudo buscar el cliente."); }
+    finally { setCustomerLoading(false); }
+  };
+  const addProduct = (p: Product) => {
+    if (p.stock <= 0 || !p.is_active) return;
+    setItems(old => old.some(item => item.product.id === p.id) ? old : [...old, { product: p, quantity: 1 }]);
+    setShowProductPicker(false); setError("");
+  };
+  const subtotal = useMemo(() => items.reduce((sum, item) => sum + Number(item.product.price) * item.quantity, 0), [items]);
+  const discount = Number(discountPercentage);
+  const validDiscount = Number.isFinite(discount) && discount >= 0 && discount <= 100;
+  const discountAmount = subtotal * (validDiscount ? discount : 0) / 100;
+  const tax = (subtotal - discountAmount) * 0.18;
+  const total = subtotal - discountAmount + tax;
+  const draftPresent = !!customer || items.length > 0 || !!branchId || !!paymentReference || discountPercentage !== "0";
 
-      const customer =
-        await getCustomerByDocument(
-          normalized,
-        );
-
-      if (!customer) {
-        setCustomerId("");
-        setLookupState("not-found");
-        setLookupMessage(
-          "El cliente no está registrado en SalesIA.",
-        );
-        return;
-      }
-
-      if (!customer.is_active) {
-        setCustomerId("");
-        setLookupState("inactive");
-        setLookupMessage(
-          `El cliente ${customer.full_name} existe, pero se encuentra inactivo. Reactívalo desde Clientes.`,
-        );
-        return;
-      }
-
-      setCustomerId(
-        String(customer.id),
-      );
-      setDocumentType(
-        customer.document_type ?? documentType,
-      );
-      setDocumentNumber(
-        customer.document_number ?? normalized,
-      );
-      setLookupState("found");
-      setLookupMessage(
-        `Cliente encontrado: ${customer.full_name}.`,
-      );
-    } catch (error) {
-      setCustomerId("");
-      setLookupState("error");
-      setLookupMessage(
-        error instanceof Error
-          ? error.message
-          : "No se pudo buscar el cliente.",
-      );
-    } finally {
-      setLookupLoading(false);
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault(); setError("");
+    if (!customer || !customer.is_active) { setError("Selecciona y verifica un cliente activo."); return; }
+    if (!branchId || !branches.some(b => b.id === Number(branchId))) { setError("Selecciona una sucursal válida."); return; }
+    if (!validDiscount) { setError("El descuento debe estar entre 0 y 100 %."); return; }
+    if (!items.length || items.some(i => !Number.isInteger(i.quantity) || i.quantity < 1 || i.quantity > i.product.stock)) {
+      setError("Agrega productos con cantidades válidas y stock suficiente."); return;
     }
-  }
-
-
-  function handleManualCustomerSelection(
-    value: string,
-  ) {
-    setCustomerId(value);
-    setLookupState("idle");
-    setLookupMessage("");
-
-    const customer = customers.find(
-      (item) => item.id === Number(value),
-    );
-
-    if (customer) {
-      setDocumentType(
-        customer.document_type ?? "DNI",
-      );
-      setDocumentNumber(
-        customer.document_number ?? "",
-      );
-    }
-  }
-
-
-  function updateItem(
-    index: number,
-    field: keyof FormItem,
-    value: string,
-  ) {
-    setItems((current) =>
-      current.map(
-        (item, itemIndex) =>
-          itemIndex === index
-            ? {
-              ...item,
-              [field]: value,
-            }
-            : item,
-      ),
-    );
-  }
-
-
-  function addItem() {
-    setItems((current) => [
-      ...current,
-      {
-        product_id: "",
-        quantity: "1",
-      },
-    ]);
-  }
-
-
-  function removeItem(
-    index: number,
-  ) {
-    setItems((current) =>
-      current.filter(
-        (_, itemIndex) =>
-          itemIndex !== index,
-      ),
-    );
-  }
-
-
-  async function handleSubmit(
-    event: FormEvent<HTMLFormElement>,
-  ) {
-    event.preventDefault();
-
-    const parsedDiscountPercentage =
-      Number(discountPercentage);
-
-    if (
-      !Number.isFinite(parsedDiscountPercentage) ||
-      parsedDiscountPercentage < 0 ||
-      parsedDiscountPercentage > 100
-    ) {
-      return;
-    }
-
-    if (
-      !customerId ||
-      !branchId ||
-      !branches.some((branch) => branch.id === Number(branchId)) ||
-      !paymentMethod ||
-      items.length === 0
-    ) {
-      return;
-    }
-
-    const parsedItems: SaleItemCreate[] =
-      items.map((item) => ({
-        product_id: Number(item.product_id),
-        quantity: Number(item.quantity),
-      }));
-
-    const validItems =
-      parsedItems.every(
-        (item) =>
-          item.product_id > 0 &&
-          item.quantity > 0,
-      );
-
-    if (!validItems) {
-      return;
-    }
-
-    await onSubmit({
-      branch_id: Number(branchId),
-      customer_id: Number(customerId),
-      payment_method: paymentMethod,
-      payment_reference:
-        paymentReference.trim() || null,
-      discount_percentage:
-        parsedDiscountPercentage,
-      items: parsedItems,
+    const payloadItems: SaleItemCreate[] = items.map(i => ({ product_id: i.product.id, quantity: i.quantity }));
+    setPending({
+      branch_id: Number(branchId), customer_id: customer.id, payment_method: paymentMethod,
+      payment_reference: paymentMethod === "EFECTIVO" ? null : paymentReference.trim() || null,
+      discount_percentage: discount, items: payloadItems
     });
-  }
+    setConfirmOpen(true);
+  };
+  const tryCancel = () => { if (submitting) return; if (draftPresent && !window.confirm("¿Descartar la orden de venta sin guardar?")) return; onCancel(); };
 
-
-  return (
-    <form
-      onSubmit={handleSubmit}
-      aria-busy={submitting}
-      className="
-        overflow-hidden
-        rounded-2xl
-        border
-        border-slate-200
-        bg-white
-        shadow-sm
-        shadow-slate-950/[0.03]
-        dark:border-slate-800
-        dark:bg-slate-900
-      "
-    >
-      <header
-        className="
-          border-b
-          border-slate-100
-          px-5
-          py-5
-          sm:px-6
-          dark:border-slate-800
-        "
-      >
-        <p
-          className="
-            text-[11px]
-            font-bold
-            uppercase
-            tracking-[0.14em]
-            text-cyan-700
-            dark:text-cyan-400
-          "
-        >
-          Operación comercial
-        </p>
-
-        <h2
-          className="
-            mt-1
-            text-lg
-            font-bold
-            text-slate-950
-            dark:text-white
-          "
-        >
-          Nueva venta
-        </h2>
-
-        <p
-          className="
-            mt-1.5
-            text-sm
-            text-slate-500
-            dark:text-slate-400
-          "
-        >
-          Identifica al cliente, selecciona el método de pago
-          y agrega los productos de la operación.
-        </p>
-      </header>
-
-      <div className="space-y-7 p-5 sm:p-6">
-        <div>
-          <label htmlFor="sale-branch" className={labelClasses}>
-            Sucursal <span className="ml-1 text-red-500">*</span>
-          </label>
-          <select
-            id="sale-branch"
-            value={branchId}
-            onChange={(event) => setBranchId(event.target.value)}
-            required
-            disabled={submitting || branches.length === 0}
-            className={controlClasses}
-          >
-            <option value="">Seleccionar sucursal</option>
-            {branches.map((branch) => (
-              <option key={branch.id} value={branch.id}>
-                {branch.name} ({branch.code})
-              </option>
-            ))}
-          </select>
-          {branches.length === 0 && (
-            <p className="mt-2 text-sm text-amber-600 dark:text-amber-400">
-              No hay sucursales activas disponibles.
-            </p>
-          )}
+  return <>
+    <form id="sales-enterprise-order" onSubmit={submit} aria-busy={submitting} className="min-h-[630px]">
+      {customerPickerOpen ? <section className="flex min-h-[630px] flex-col gap-4">
+        <header className="flex flex-wrap items-center gap-3 border-b border-slate-200 pb-4 dark:border-slate-700">
+          <Button type="button" variant="secondary" onClick={() => setCustomerPickerOpen(false)}><ArrowLeft size={16} className="mr-1 inline" /> Volver a la orden</Button>
+          <div><h3 className="text-lg font-bold">Seleccionar cliente</h3><p className="text-xs text-slate-500">Busca por documento o revisa los siete clientes de cada página.</p></div>
+        </header>
+        <div className="grid gap-3 sm:grid-cols-[120px_minmax(0,1fr)_auto] sm:items-end">
+          <div><label className={label}>Tipo de documento</label><select className={input} value={documentType} onChange={e => setDocumentType(e.target.value as CustomerDocumentType)}><option>DNI</option><option>RUC</option><option>CE</option><option>OTRO</option></select></div>
+          <div><label className={label}>Número de documento</label><input className={input} value={documentNumber} onChange={e => setDocumentNumber(e.target.value)} placeholder="DNI, RUC u otro documento" onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); void lookupCustomer(); } }} /></div>
+          <Button type="button" variant="secondary" disabled={customerLoading} onClick={() => void lookupCustomer()}><Search size={15} className="mr-1 inline" />{customerLoading ? "Buscando..." : "Buscar documento"}</Button>
         </div>
-        <section
-          className="
-            rounded-2xl
-            border
-            border-slate-200
-            bg-slate-50/60
-            p-4
-            dark:border-slate-800
-            dark:bg-slate-950/30
-          "
-        >
-          <div className="mb-4">
-            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
-              Identificación del cliente
-            </h3>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Busca primero por DNI, RUC u otro documento registrado.
-            </p>
+        {customerError && <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">{customerError}{customerError.includes("no encontrado") && <div className="mt-2"><Button type="button" variant="secondary" onClick={() => onRegisterCustomer(documentType, documentNumber.trim())}>Registrar cliente</Button></div>}</div>}
+        <div className="min-h-0 flex-1 space-y-3">
+          <p className="text-sm font-semibold">Clientes activos</p>
+          <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
+            <table className="w-full min-w-[550px] text-left text-sm">
+              <thead className="bg-slate-50 text-xs uppercase text-slate-600 dark:bg-slate-800 dark:text-slate-300"><tr><th className="p-3">ID</th><th className="p-3">Cliente</th><th className="p-3">Documento</th><th className="p-3 text-right">Acción</th></tr></thead>
+              <tbody>{customerTableLoading ? <tr><td colSpan={4} className="p-5 text-center text-slate-500">Cargando clientes...</td></tr>
+                : customerTableError ? <tr><td colSpan={4} className="p-5 text-center text-red-600">{customerTableError}</td></tr>
+                  : customerRows.length === 0 ? <tr><td colSpan={4} className="p-5 text-center text-slate-500">No hay clientes activos.</td></tr>
+                    : customerRows.map(c => <tr key={c.id} className="border-t border-slate-100 dark:border-slate-700"><td className="p-3">#{c.id}</td><td className="p-3 font-medium">{c.full_name}</td><td className="p-3">{c.document_type ?? "DOC"} {c.document_number ?? "No registrado"}</td><td className="p-3 text-right"><button type="button" className="rounded-lg bg-cyan-700 px-3 py-1.5 text-white hover:bg-cyan-800" onClick={() => pickCustomer(c)}>Seleccionar</button></td></tr>)}</tbody>
+            </table>
           </div>
-
-          <div
-            className="
-              grid
-              grid-cols-1
-              gap-4
-              lg:grid-cols-[180px_minmax(0,1fr)_auto]
-              lg:items-end
-            "
-          >
-            <div>
-              <label htmlFor="sale-document-type" className={labelClasses}>
-                Tipo
-              </label>
-
-              <select
-                id="sale-document-type"
-                value={documentType}
-                onChange={(event) => {
-                  setDocumentType(
-                    event.target.value as CustomerDocumentType,
-                  );
-                  setLookupState("idle");
-                  setLookupMessage("");
-                }}
-                disabled={submitting || lookupLoading}
-                className={controlClasses}
-              >
-                <option value="DNI">DNI</option>
-                <option value="RUC">RUC</option>
-                <option value="CE">Carné de extranjería</option>
-                <option value="OTRO">Otro</option>
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="sale-document-number" className={labelClasses}>
-                Número de documento
-              </label>
-
-              <input
-                id="sale-document-number"
-                value={documentNumber}
-                onChange={(event) => {
-                  setDocumentNumber(event.target.value);
-                  setLookupState("idle");
-                  setLookupMessage("");
-                }}
-                placeholder={
-                  documentType === "RUC"
-                    ? "20123456789"
-                    : documentType === "DNI"
-                      ? "12345678"
-                      : "Número de documento"
-                }
-                inputMode={
-                  documentType === "DNI" || documentType === "RUC"
-                    ? "numeric"
-                    : undefined
-                }
-                disabled={submitting || lookupLoading}
-                className={controlClasses}
-              />
-            </div>
-
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={handleCustomerLookup}
-              disabled={submitting || lookupLoading}
-            >
-              {lookupLoading
-                ? "Buscando..."
-                : "Buscar cliente"}
-            </Button>
-          </div>
-
-          {lookupMessage && (
-            <div
-              className={`
-                mt-4
-                rounded-xl
-                border
-                px-4
-                py-3
-                text-sm
-                ${lookupState === "found"
-                  ? "border-green-200 bg-green-50 text-green-700 dark:border-green-900/60 dark:bg-green-950/30 dark:text-green-300"
-                  : lookupState === "not-found"
-                    ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300"
-                    : "border-red-200 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300"
-                }
-              `}
-            >
-              <div
-                className="
-                  flex
-                  flex-col
-                  gap-3
-                  sm:flex-row
-                  sm:items-center
-                  sm:justify-between
-                "
-              >
-                <span>{lookupMessage}</span>
-
-                {lookupState === "not-found" && (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() =>
-                      onRegisterCustomer(
-                        documentType,
-                        normalizeDocumentNumber(documentNumber),
-                      )
-                    }
-                  >
-                    Registrar cliente
-                  </Button>
+          <TablePagination total={customerTotal} page={customerPage} pageSize={7} noun="clientes" loading={customerTableLoading} onPageChange={setCustomerPage} />
+        </div>
+      </section> : <div className="grid gap-5 lg:grid-cols-[minmax(0,1.85fr)_minmax(300px,1fr)]">
+        <section className="min-w-0 space-y-5">
+          <header className="flex items-center gap-2 border-b border-slate-200 pb-3 dark:border-slate-700"><ReceiptText className="text-cyan-600" size={23} /><h3 className="text-lg font-bold text-slate-900 dark:text-white">Orden de venta</h3></header>
+          <div><label htmlFor="sale-branch" className={label}>Sucursal *</label>
+            <select id="sale-branch" value={branchId} onChange={e => setBranchId(e.target.value)} className={input} required disabled={submitting}>
+              <option value="">Seleccionar sucursal</option>{branches.map(b => <option key={b.id} value={b.id}>{b.name} ({b.code})</option>)}
+            </select></div>
+          <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-700">
+            <div className="flex items-center justify-between gap-2"><h4 className="font-semibold">Productos de la orden</h4><Button type="button" variant="secondary" disabled={submitting} onClick={() => setShowProductPicker(v => !v)}><Plus size={16} className="mr-1 inline" />Agregar</Button></div>
+            {showProductPicker && <div className="mt-4 space-y-3 rounded-xl bg-slate-50 p-3 dark:bg-slate-950/50">
+              <CategorySearch value={categoryId} onChange={category => setCategoryId(category?.id ?? null)} disabled={submitting} />
+              <SearchPicker<Product>
+                label="Buscar producto"
+                placeholder="Buscar por ID, SKU o nombre del producto"
+                noun="productos"
+                search={productSearch}
+                getKey={p => p.id}
+                onSelect={addProduct}
+                renderItem={p => (
+                  <span className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-medium">{p.name}</span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400">SKU: {p.sku} · ID: {p.id}</span>
+                  </span>
                 )}
-              </div>
-            </div>
-          )}
-
-          <div className="mt-5">
-            <label htmlFor="sale-customer" className={labelClasses}>
-              Cliente seleccionado
-              <span className="ml-1 text-red-500">*</span>
-            </label>
-
-            <select
-              id="sale-customer"
-              value={customerId}
-              onChange={(event) =>
-                handleManualCustomerSelection(
-                  event.target.value,
-                )
-              }
-              required
-              disabled={submitting}
-              className={controlClasses}
-            >
-              <option value="">
-                Seleccionar cliente
-              </option>
-
-              {customers.map((customer) => (
-                <option
-                  key={customer.id}
-                  value={customer.id}
-                >
-                  {customer.document_number
-                    ? `${customer.document_type ?? "DOC"} ${customer.document_number} — `
-                    : ""}
-                  {customer.full_name}
-                </option>
-              ))}
-            </select>
-
-            {selectedCustomer && (
-              <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                Cliente activo: {selectedCustomer.full_name}
-              </p>
-            )}
+              />
+            </div>}
+            {items.length === 0 ? <p className="mt-4 text-sm text-slate-500">No hay productos agregados.</p> : <div className="mt-4 space-y-3">{items.map(item => <div key={item.product.id} className="grid grid-cols-[minmax(0,1fr)_90px_85px_auto] items-end gap-2 border-b border-slate-100 pb-3 dark:border-slate-700">
+              <div className="min-w-0"><p className="truncate text-sm font-semibold">{item.product.name}</p><p className="text-xs text-slate-500">{item.product.sku} · Stock disponible: {item.product.stock} · Precio unitario: {money(Number(item.product.price))}</p></div>
+              <div><label className="block text-xs text-slate-500" htmlFor={`sale-quantity-${item.product.id}`}>Cantidad</label><input id={`sale-quantity-${item.product.id}`} className={input} type="number" min={1} max={item.product.stock} value={item.quantity} disabled={submitting} onChange={e => setItems(old => old.map(x => x.product.id === item.product.id ? { ...x, quantity: Number(e.target.value) } : x))} /></div>
+              <div className="pb-2 text-right text-xs font-semibold">{money(Number(item.product.price) * item.quantity)}</div>
+              <button type="button" aria-label={`Quitar ${item.product.name}`} title="Quitar producto" disabled={submitting} onClick={() => setItems(old => old.filter(x => x.product.id !== item.product.id))} className="mb-1 rounded-lg p-2 text-red-600 hover:bg-red-50"><Trash2 size={17} /></button>
+            </div>)}</div>}
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2"><div><label className={label} htmlFor="sale-payment">Método de pago *</label><select id="sale-payment" value={paymentMethod} onChange={e => { setPaymentMethod(e.target.value); if (e.target.value === "EFECTIVO") setPaymentReference(""); }} className={input} disabled={submitting}>
+            {['EFECTIVO', 'TARJETA', 'TRANSFERENCIA', 'YAPE', 'PLIN'].map(v => <option key={v} value={v}>{v}</option>)}</select></div>
+            <div><label className={label} htmlFor="sale-discount">Descuento (%)</label><input id="sale-discount" className={input} type="number" step="0.01" min="0" max="100" value={discountPercentage} disabled={submitting} onChange={e => setDiscountPercentage(e.target.value)} /></div>
+            {paymentMethod !== "EFECTIVO" && <div className="sm:col-span-2"><label className={label} htmlFor="sale-reference">Referencia de pago (opcional)</label><input id="sale-reference" className={input} maxLength={120} value={paymentReference} disabled={submitting} onChange={e => setPaymentReference(e.target.value)} placeholder="Código de operación, sin datos bancarios sensibles" /></div>}
+          </div>
+          <div className="space-y-2 rounded-xl border border-cyan-200 bg-cyan-50 p-4 text-sm dark:border-cyan-900 dark:bg-cyan-950/30">
+            <p className="text-xs font-bold uppercase tracking-wider text-cyan-700 dark:text-cyan-400">Resumen estimado</p>
+            <div className="flex justify-between"><span>Subtotal</span><b>{money(subtotal)}</b></div>
+            <div className="flex justify-between"><span>Descuento ({validDiscount ? discount : 0} %)</span><b>- {money(discountAmount)}</b></div>
+            <div className="flex justify-between"><span>IGV (18 %)</span><b>+ {money(tax)}</b></div>
+            <div className="flex justify-between border-t border-cyan-200 pt-2 text-lg font-bold dark:border-cyan-900"><span>Total</span><span>{money(total)}</span></div>
+            <p className="text-xs text-slate-500">El backend recalcula y verifica todos los importes y el stock al registrar.</p>
           </div>
         </section>
-
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-          <div>
-            <label htmlFor="sale-payment" className={labelClasses}>
-              Método de pago
-              <span className="ml-1 text-red-500">*</span>
-            </label>
-
-            <select
-              id="sale-payment"
-              value={paymentMethod}
-              onChange={(event) => {
-                const nextMethod = event.target.value;
-
-                setPaymentMethod(nextMethod);
-
-                if (nextMethod === "EFECTIVO") {
-                  setPaymentReference("");
-                }
-              }}
-              disabled={submitting}
-              className={controlClasses}
-            >
-              <option value="EFECTIVO">Efectivo</option>
-              <option value="TARJETA">Tarjeta</option>
-              <option value="TRANSFERENCIA">Transferencia</option>
-              <option value="YAPE">Yape</option>
-              <option value="PLIN">Plin</option>
-            </select>
-          </div>
-          <div>
-            <label
-              htmlFor="sale-discount"
-              className={labelClasses}
-            >
-              Descuento (%)
-            </label>
-
-            <input
-              id="sale-discount"
-              type="number"
-              min="0"
-              max="100"
-              step="0.01"
-              value={discountPercentage}
-              onChange={(event) =>
-                setDiscountPercentage(
-                  event.target.value,
-                )
-              }
-              disabled={submitting}
-              className={controlClasses}
-            />
-
-            <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-              El descuento se aplica sobre el subtotal antes del IGV.
-            </p>
-          </div>
-
-          <div className="md:col-span-2">
-            <label
-              htmlFor="sale-payment-reference"
-              className={labelClasses}
-            >
-              Referencia de pago
-            </label>
-
-            <input
-              id="sale-payment-reference"
-              value={paymentReference}
-              onChange={(event) =>
-                setPaymentReference(event.target.value)
-              }
-              maxLength={120}
-              placeholder={
-                paymentMethod === "EFECTIVO"
-                  ? "No requerida para efectivo"
-                  : "Ej. operación, voucher o referencia"
-              }
-              disabled={
-                submitting ||
-                paymentMethod === "EFECTIVO"
-              }
-              className={controlClasses}
-            />
-
-            <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-              Opcional. No ingreses números completos de tarjeta ni información bancaria sensible.
-            </p>
-          </div>
-        </div>
-
-        <div>
-          <div
-            className="
-              mb-4
-              flex
-              flex-col
-              gap-3
-              sm:flex-row
-              sm:items-center
-              sm:justify-between
-            "
-          >
-            <div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
-                Productos
-              </h3>
-
-              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                Agrega los productos incluidos en la venta.
-              </p>
-            </div>
-
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={addItem}
-              disabled={submitting}
-            >
-              + Agregar producto
-            </Button>
-          </div>
-
-          <div className="space-y-3">
-            {items.map((item, index) => {
-              const selectedProduct =
-                productMap.get(
-                  Number(item.product_id),
-                );
-
-              const quantity =
-                Number(item.quantity);
-
-              const subtotal =
-                selectedProduct && quantity > 0
-                  ? Number(selectedProduct.price) * quantity
-                  : 0;
-
-              return (
-                <div
-                  key={index}
-                  className="
-                    rounded-2xl
-                    border
-                    border-slate-200
-                    bg-slate-50/70
-                    p-4
-                    dark:border-slate-800
-                    dark:bg-slate-950/40
-                  "
-                >
-                  <div
-                    className="
-                      mb-4
-                      flex
-                      items-center
-                      justify-between
-                      gap-3
-                    "
-                  >
-                    <p className="text-sm font-bold text-slate-700 dark:text-slate-200">
-                      Producto {index + 1}
-                    </p>
-
-                    {items.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="danger"
-                        onClick={() => removeItem(index)}
-                        disabled={submitting}
-                      >
-                        Quitar
-                      </Button>
-                    )}
-                  </div>
-
-                  <div
-                    className="
-                      grid
-                      grid-cols-1
-                      gap-4
-                      lg:grid-cols-[minmax(0,1fr)_140px_160px]
-                      lg:items-end
-                    "
-                  >
-                    <div>
-                      <label
-                        htmlFor={`sale-product-${index}`}
-                        className={labelClasses}
-                      >
-                        Producto
-                      </label>
-
-                      <select
-                        id={`sale-product-${index}`}
-                        value={item.product_id}
-                        onChange={(event) =>
-                          updateItem(
-                            index,
-                            "product_id",
-                            event.target.value,
-                          )
-                        }
-                        required
-                        disabled={submitting}
-                        className={controlClasses}
-                      >
-                        <option value="">
-                          Seleccionar producto
-                        </option>
-
-                        {products.map((product) => (
-                          <option
-                            key={product.id}
-                            value={product.id}
-                            disabled={product.stock === 0}
-                          >
-                            {product.name} — Stock: {product.stock} — S/{" "}
-                            {Number(product.price).toFixed(2)}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label
-                        htmlFor={`sale-quantity-${index}`}
-                        className={labelClasses}
-                      >
-                        Cantidad
-                      </label>
-
-                      <input
-                        id={`sale-quantity-${index}`}
-                        type="number"
-                        min="1"
-                        max={selectedProduct?.stock}
-                        step="1"
-                        value={item.quantity}
-                        onChange={(event) =>
-                          updateItem(
-                            index,
-                            "quantity",
-                            event.target.value,
-                          )
-                        }
-                        required
-                        disabled={submitting}
-                        className={controlClasses}
-                      />
-                    </div>
-
-                    <div>
-                      <span className={labelClasses}>
-                        Subtotal estimado
-                      </span>
-
-                      <div
-                        className="
-                          flex
-                          h-11
-                          items-center
-                          rounded-xl
-                          border
-                          border-slate-200
-                          bg-white
-                          px-3.5
-                          text-sm
-                          font-bold
-                          text-slate-900
-                          dark:border-slate-700
-                          dark:bg-slate-900
-                          dark:text-slate-100
-                        "
-                      >
-                        S/{" "}
-                        {subtotal.toLocaleString(
-                          "es-PE",
-                          {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                          },
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {selectedProduct && (
-                    <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
-                      Stock disponible:{" "}
-                      <span className="font-semibold">
-                        {selectedProduct.stock}
-                      </span>
-                    </p>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <div
-          className="
-    rounded-2xl
-    border
-    border-cyan-200
-    bg-cyan-50
-    p-5
-    dark:border-cyan-900/60
-    dark:bg-cyan-950/20
-  "
-        >
-          <div className="mb-4">
-            <p className="text-xs font-bold uppercase tracking-[0.1em] text-cyan-700 dark:text-cyan-400">
-              Resumen comercial estimado
-            </p>
-
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              Los importes definitivos se recalculan y validan en el servidor.
-            </p>
-          </div>
-
-          <div className="space-y-3 text-sm">
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-slate-600 dark:text-slate-300">
-                Subtotal
-              </span>
-
-              <span className="font-semibold text-slate-900 dark:text-slate-100">
-                S/{" "}
-                {estimatedSubtotal.toLocaleString(
-                  "es-PE",
-                  {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  },
-                )}
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-slate-600 dark:text-slate-300">
-                Descuento ({validDiscountPercentage.toFixed(2)}%)
-              </span>
-
-              <span className="font-semibold text-slate-900 dark:text-slate-100">
-                - S/{" "}
-                {estimatedDiscountAmount.toLocaleString(
-                  "es-PE",
-                  {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  },
-                )}
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-slate-600 dark:text-slate-300">
-                IGV ({estimatedTaxPercentage}%)
-              </span>
-
-              <span className="font-semibold text-slate-900 dark:text-slate-100">
-                + S/{" "}
-                {estimatedTaxAmount.toLocaleString(
-                  "es-PE",
-                  {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  },
-                )}
-              </span>
-            </div>
-
-            <div className="border-t border-cyan-200 pt-3 dark:border-cyan-900/60">
-              <div className="flex items-center justify-between gap-4">
-                <span className="font-bold text-slate-950 dark:text-white">
-                  Total estimado
-                </span>
-
-                <span className="text-2xl font-bold tracking-tight text-slate-950 dark:text-white">
-                  S/{" "}
-                  {estimatedTotal.toLocaleString(
-                    "es-PE",
-                    {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    },
-                  )}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <footer
-        className="
-          flex
-          flex-col-reverse
-          gap-3
-          border-t
-          border-slate-100
-          bg-slate-50/60
-          px-5
-          py-4
-          sm:flex-row
-          sm:justify-end
-          sm:px-6
-          dark:border-slate-800
-          dark:bg-slate-950/30
-        "
-      >
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={onCancel}
-          disabled={submitting}
-        >
-          Cancelar
-        </Button>
-
-        <Button
-          type="submit"
-          disabled={submitting || branches.length === 0}
-        >
-          {submitting
-            ? "Registrando..."
-            : "Registrar venta"}
-        </Button>
-      </footer>
+        <aside className="min-w-0 space-y-4 rounded-xl border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-700 dark:bg-slate-950/40">
+          <header className="flex items-center gap-2"><UserRound className="text-cyan-600" size={20} /><h3 className="font-bold">Datos del cliente</h3></header>
+          {customer ? <div className="space-y-3 rounded-xl border border-cyan-200 bg-white p-3 text-sm dark:border-cyan-900 dark:bg-slate-900">
+            <p className="flex items-start gap-2 font-semibold"><UserRound size={17} className="shrink-0 text-cyan-600" />{customer.full_name}</p>
+            <p className="flex items-center gap-2"><IdCard size={16} className="shrink-0 text-cyan-600" />{customer.document_type ?? "Documento"}: {customer.document_number ?? "No registrado"}</p>
+            <p className="flex items-center gap-2"><Phone size={16} className="shrink-0 text-cyan-600" />{customer.phone ?? "Teléfono no registrado"}</p>
+            <p className="flex items-center gap-2 break-all"><Mail size={16} className="shrink-0 text-cyan-600" />{customer.email ?? "Correo no registrado"}</p>
+            <p className="flex items-start gap-2"><MapPin size={16} className="mt-0.5 shrink-0 text-cyan-600" />{customer.address ?? "Dirección no registrada"}</p>
+            <p className="flex items-center gap-2 text-emerald-700"><CheckCircle2 size={16} /> Cliente activo · ID {customer.id}</p>
+          </div> : <div className="flex min-h-56 flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-slate-300 bg-white p-5 text-center dark:border-slate-700 dark:bg-slate-900">
+            <UserRound size={38} className="text-cyan-600" /><p className="font-semibold">Sin cliente seleccionado</p><p className="text-xs text-slate-500">Verifica la identidad del cliente antes de registrar la venta.</p>
+          </div>}
+          <Button type="button" variant="secondary" disabled={submitting} onClick={() => { setCustomerError(""); setCustomerPickerOpen(true); }}><Search size={16} className="mr-1 inline" />{customer ? "Cambiar cliente" : "Seleccionar cliente"}</Button>
+          <div className="border-t border-slate-200 pt-3 dark:border-slate-700"><p className="flex items-center gap-2 text-sm font-semibold"><FileText size={16} className="text-cyan-600" /> Comprobante</p><p className="mt-2 text-xs text-slate-500">Boleta / factura y PDF se implementarán en la etapa de comprobantes. Esta versión registra la venta sin emitir un documento tributario.</p></div>
+          <div className="border-t border-slate-200 pt-3 dark:border-slate-700"><p className="flex items-center gap-2 text-sm text-slate-500"><Building2 size={16} className="text-cyan-600" />La sucursal se selecciona en Orden de venta.</p></div>
+        </aside>
+        {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700 lg:col-span-2">{error}</p>}
+        <div className="flex flex-wrap justify-end gap-2 lg:col-span-2"><Button type="button" variant="secondary" disabled={submitting} onClick={tryCancel}>Cancelar</Button><Button type="submit" disabled={submitting || branches.length === 0}>{submitting ? "Registrando..." : "Revisar y registrar venta"}</Button></div>
+      </div>}
     </form>
-  );
+    <ConfirmDialog open={confirmOpen} title="Confirmar registro de venta" danger={false} confirmLabel="Confirmar venta" onCancel={() => setConfirmOpen(false)}
+      message={<div className="space-y-2"><p>Cliente: <b>{customer?.full_name}</b></p><p>{items.length === 1 ? "1 producto" : `${items.length} productos distintos`} · Total estimado: <b>{money(total)}</b></p><p>Al confirmar se registrará el pago y se descontará el stock.</p></div>}
+      onConfirm={async () => { if (!pending) return; const result = await onSubmit(pending); if (result !== false) setConfirmOpen(false); }} />
+  </>;
 }

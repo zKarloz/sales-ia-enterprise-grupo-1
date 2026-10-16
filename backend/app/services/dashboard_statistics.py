@@ -56,6 +56,7 @@ def aggregate_sales_by_period(
     """Agrupa facturación y operaciones temporalmente."""
 
     if period not in (
+        "day",
         "month",
         "quarter",
         "year",
@@ -78,9 +79,10 @@ def aggregate_sales_by_period(
         if sale.id not in amounts:
             continue
 
-        key = _bucket_start(
-            sale,
-            period,
+        key = (
+            sale.created_at.astimezone(BUSINESS_TIMEZONE).replace(
+                minute=0, second=0, microsecond=0
+            ) if period == "day" else _bucket_start(sale, period)
         )
 
         groups[key]["total"] += amounts[sale.id]
@@ -90,8 +92,8 @@ def aggregate_sales_by_period(
         {
             "period_start": key,
             "label": (
-                key.strftime("%Y-%m-%d")
-                if period in ("month", "custom")
+                key.strftime("%H:00") if period == "day"
+                else key.strftime("%Y-%m-%d") if period in ("month", "custom")
                 else key.strftime("%Y-%m")
             ),
             "total": value["total"],
@@ -246,7 +248,7 @@ def fill_sales_period_gaps(
     Las fechas se interpretan en America/Lima.
     """
 
-    if period not in ("month", "quarter", "year", "custom"):
+    if period not in ("day", "month", "quarter", "year", "custom"):
         raise ValueError("Periodo de Dashboard no válido.")
 
     start_date = start.astimezone(
@@ -260,6 +262,31 @@ def fill_sales_period_gaps(
     current_date = today or datetime.now(
         BUSINESS_TIMEZONE
     ).date()
+
+    if period == "day":
+        start_hour = start.astimezone(BUSINESS_TIMEZONE).replace(
+            minute=0, second=0, microsecond=0
+        )
+        current_hour = datetime.now(BUSINESS_TIMEZONE).replace(
+            minute=0, second=0, microsecond=0
+        )
+        limit = min(
+            end.astimezone(BUSINESS_TIMEZONE),
+            current_hour + timedelta(hours=1),
+        )
+        indexed = {row["period_start"]: row for row in rows}
+        completed = []
+        cursor = start_hour
+        while cursor < limit:
+            original = indexed.get(cursor)
+            completed.append({
+                "period_start": cursor,
+                "label": cursor.strftime("%H:00"),
+                "total": original["total"] if original is not None else ZERO,
+                "orders": original["orders"] if original is not None else 0,
+            })
+            cursor += timedelta(hours=1)
+        return completed
 
     # Para periodos predefinidos, no crear fechas futuras.
     if period != "custom":

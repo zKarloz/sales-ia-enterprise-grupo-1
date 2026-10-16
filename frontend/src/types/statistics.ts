@@ -329,16 +329,27 @@ export interface AnalysisDetail
   results: AnalysisResult[];
 
   random_variable:
-    | AnalysisRandomVariable
-    | null;
+  | AnalysisRandomVariable
+  | null;
 
   bayes_analysis:
-    | AnalysisBayes
-    | null;
+  | AnalysisBayes
+  | null;
 }
 
 
 export interface AnalysisFilters {
   analysis_type?: StatisticalAnalysisType;
   dataset_id?: number;
+}
+
+
+export type EmpiricalOperator = "eq" | "gt" | "gte" | "lt" | "lte";
+export interface EmpiricalEvent { variable_id: number; operator: EmpiricalOperator; value: string; }
+export interface EmpiricalBayesRequest { dataset_id: number; event_a: EmpiricalEvent; event_b: EmpiricalEvent; }
+export interface EmpiricalBayesResponse {
+  analysis_id: number; bayes_analysis_id: number; dataset_id: number;
+  total: number; count_a: number; count_b: number; count_both: number;
+  probability_a: string; probability_b_given_a: string;
+  probability_b: string; probability_a_given_b: string;
 }

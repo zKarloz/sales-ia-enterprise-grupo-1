@@ -86,6 +86,12 @@ def resolve_comparison_ranges(
 
     current_end = min(current_end, cutoff)
 
+    if filters.period == "day":
+        return (
+            (current_start, current_end),
+            (current_start - timedelta(days=1), current_end - timedelta(days=1)),
+        )
+
     months_back = {
         "month": -1,
         "quarter": -3,

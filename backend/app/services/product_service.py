@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -110,3 +110,30 @@ def set_product_active(
     db.refresh(product)
 
     return product
+
+def paginate_products(
+    db: Session, *, page: int = 1, page_size: int = 7,
+    search: str = "", category_id: int | None = None,
+    status_filter: str = "all",
+) -> tuple[list[Product], int]:
+    """Consulta una página de productos y cuenta coincidencias en SQL."""
+    filters = []
+    if status_filter == "active":
+        filters.append(Product.is_active.is_(True))
+    elif status_filter == "inactive":
+        filters.append(Product.is_active.is_(False))
+    if category_id is not None:
+        filters.append(Product.category_id == category_id)
+    term = search.strip()
+    if term:
+        pattern = f"%{term}%"
+        clauses = [Product.name.ilike(pattern), Product.sku.ilike(pattern)]
+        if term.isdigit():
+            clauses.append(Product.id == int(term))
+        filters.append(or_(*clauses))
+    total = db.scalar(select(func.count(Product.id)).where(*filters)) or 0
+    items = list(db.scalars(
+        select(Product).where(*filters).order_by(Product.id)
+        .offset((page - 1) * page_size).limit(page_size)
+    ).all())
+    return items, total

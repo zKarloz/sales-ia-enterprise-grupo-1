@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.dependencies.roles import require_roles
@@ -10,7 +11,7 @@ from app.core.roles import ROLE_MANAGER, ROLE_SELLER, ROLE_WAREHOUSE
 from app.schemas.product import ProductCreate, ProductResponse, ProductStatusUpdate, ProductUpdate
 from app.schemas.auth import CurrentUserResponse
 
-from app.services.product_service import create_product, get_product, list_products, set_product_active, update_product
+from app.services.product_service import create_product, get_product, list_products, paginate_products, set_product_active, update_product
 
 
 router = APIRouter(
@@ -35,6 +36,35 @@ def get_products(
     return list_products(
         db,
         include_inactive=include_inactive,
+    )
+
+
+class ProductPageResponse(BaseModel):
+    items: list[ProductResponse]
+    total: int
+    page: int
+    page_size: int
+    pages: int
+
+
+@router.get("/paginated", response_model=ProductPageResponse)
+def get_products_paginated(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=7, ge=1, le=100),
+    search: str = Query(default="", max_length=150),
+    category_id: int | None = Query(default=None, ge=1),
+    status_filter: str = Query(default="all", pattern="^(all|active|inactive)$"),
+    db: Session = Depends(get_db),
+    current_user: CurrentUserResponse = Depends(get_current_user),
+):
+    """Busca y pagina productos desde PostgreSQL."""
+    items, total = paginate_products(
+        db, page=page, page_size=page_size, search=search,
+        category_id=category_id, status_filter=status_filter,
+    )
+    return ProductPageResponse(
+        items=items, total=total, page=page, page_size=page_size,
+        pages=max(1, (total + page_size - 1) // page_size),
     )
 
 

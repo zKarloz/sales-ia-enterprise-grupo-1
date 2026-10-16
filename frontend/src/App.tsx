@@ -7,9 +7,11 @@ import {
 
 import ProtectedRoute from "./components/ProtectedRoute";
 import RoleRoute from "./components/RoleRoute";
+import { ToastProvider } from "./components/ui/ToastProvider";
 
 import { AuthProvider } from "./context/AuthContext";
 import MainLayout from "./layouts/MainLayout";
+import GestionTabs, { GestionRedirect } from "./modules/gestion/GestionTabs";
 
 import {
   ROLE_ADMIN,
@@ -47,168 +49,171 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Routes>
+        <ToastProvider>
+          <Routes>
 
-          {/* ==================================================
+            {/* ==================================================
               MÓDULO: AUTENTICACIÓN
               Ruta pública de inicio de sesión.
           ================================================== */}
 
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/login" element={<LoginPage />} />
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/login" element={<LoginPage />} />
 
 
-          {/* ==================================================
+            {/* ==================================================
               RUTAS PRIVADAS
               Requieren una sesión autenticada.
           ================================================== */}
 
-          <Route element={<ProtectedRoute />}>
-            <Route element={<MainLayout />}>
+            <Route element={<ProtectedRoute />}>
+              <Route element={<MainLayout />}>
 
-              {/* ==============================================
+                {/* ==============================================
                   MÓDULO: DASHBOARD
                   Disponible para usuarios autenticados.
               ============================================== */}
 
-              <Route
-                path="/dashboard"
-                element={<DashboardPage />}
-              />
+                <Route
+                  path="/dashboard"
+                  element={<DashboardPage />}
+                />
 
 
-              {/* ==============================================
+                <Route path="/gestion" element={<GestionRedirect />} />
+
+                {/* ==============================================
                   MÓDULO: CLIENTES
                   Roles: Administrador y Vendedor.
               ============================================== */}
 
-              <Route
-                element={
-                  <RoleRoute
-                    allowedRoles={[
-                      ROLE_ADMIN,
-                      ROLE_SELLER,
-                    ]}
-                  />
-                }
-              >
                 <Route
-                  path="/clientes"
-                  element={<CustomersPage />}
-                />
-              </Route>
+                  element={
+                    <RoleRoute
+                      allowedRoles={[
+                        ROLE_ADMIN,
+                        ROLE_SELLER,
+                      ]}
+                    />
+                  }
+                >
+                  <Route
+                    path="/clientes"
+                    element={<GestionTabs><CustomersPage /></GestionTabs>}
+                  />
+                </Route>
 
 
-              {/* ==============================================
+                {/* ==============================================
                   MÓDULOS: CATÁLOGOS E INVENTARIO
                   Roles: Administrador y Almacén.
               ============================================== */}
 
-              <Route
-                element={
-                  <RoleRoute
-                    allowedRoles={[
-                      ROLE_ADMIN,
-                      ROLE_WAREHOUSE,
-                    ]}
+                <Route
+                  element={
+                    <RoleRoute
+                      allowedRoles={[
+                        ROLE_ADMIN,
+                        ROLE_WAREHOUSE,
+                      ]}
+                    />
+                  }
+                >
+                  {/* Módulo: Productos */}
+                  <Route
+                    path="/productos"
+                    element={<GestionTabs><ProductsPage /></GestionTabs>}
                   />
-                }
-              >
-                {/* Módulo: Productos */}
-                <Route
-                  path="/productos"
-                  element={<ProductsPage />}
-                />
 
-                {/* Módulo: Categorías */}
-                <Route
-                  path="/categorias"
-                  element={<CategoriesPage />}
-                />
+                  {/* Módulo: Categorías */}
+                  <Route
+                    path="/categorias"
+                    element={<GestionTabs><CategoriesPage /></GestionTabs>}
+                  />
 
-                {/* Módulo: Proveedores */}
-                <Route
-                  path="/proveedores"
-                  element={<SuppliersPage />}
-                />
+                  {/* Módulo: Proveedores */}
+                  <Route
+                    path="/proveedores"
+                    element={<GestionTabs><SuppliersPage /></GestionTabs>}
+                  />
 
-                {/* Módulo: Inventario */}
-                <Route
-                  path="/inventario"
-                  element={<InventoryPage />}
-                />
-              </Route>
+                  {/* Módulo: Inventario */}
+                  <Route
+                    path="/inventario"
+                    element={<GestionTabs><InventoryPage /></GestionTabs>}
+                  />
+                </Route>
 
 
-              {/* ==============================================
+                {/* ==============================================
                   MÓDULO: VENTAS
                   Roles: Administrador, Gerente y Vendedor.
               ============================================== */}
 
-              <Route
-                element={
-                  <RoleRoute
-                    allowedRoles={[
-                      ROLE_ADMIN,
-                      ROLE_MANAGER,
-                      ROLE_SELLER,
-                    ]}
-                  />
-                }
-              >
                 <Route
-                  path="/ventas"
-                  element={<SalesPage />}
-                />
-              </Route>
+                  element={
+                    <RoleRoute
+                      allowedRoles={[
+                        ROLE_ADMIN,
+                        ROLE_MANAGER,
+                        ROLE_SELLER,
+                      ]}
+                    />
+                  }
+                >
+                  <Route
+                    path="/ventas"
+                    element={<GestionTabs><SalesPage /></GestionTabs>}
+                  />
+                </Route>
 
 
-              {/* ==============================================
+                {/* ==============================================
                   MÓDULO: ESTADÍSTICA
                   Roles: Administrador y Analista.
               ============================================== */}
 
-              <Route
-                element={
-                  <RoleRoute
-                    allowedRoles={[
-                      ROLE_ADMIN,
-                      ROLE_ANALYST,
-                    ]}
-                  />
-                }
-              >
                 <Route
-                  path="/estadistica"
-                  element={<StatisticsPage />}
-                />
-              </Route>
+                  element={
+                    <RoleRoute
+                      allowedRoles={[
+                        ROLE_ADMIN,
+                        ROLE_ANALYST,
+                      ]}
+                    />
+                  }
+                >
+                  <Route
+                    path="/estadistica"
+                    element={<StatisticsPage />}
+                  />
+                </Route>
 
 
-              {/* ==============================================
+                {/* ==============================================
                   MÓDULO: ANALYTICS — FASE 10
                   Roles: Administrador, Gerente y Analista.
               ============================================== */}
 
-              <Route
-                element={
-                  <RoleRoute
-                    allowedRoles={[
-                      ROLE_ADMIN,
-                      ROLE_MANAGER,
-                      ROLE_ANALYST,
-                    ]}
-                  />
-                }
-              >
                 <Route
-                  path="/analytics"
-                  element={<AnalyticsPage />}
-                />
-              </Route>
+                  element={
+                    <RoleRoute
+                      allowedRoles={[
+                        ROLE_ADMIN,
+                        ROLE_MANAGER,
+                        ROLE_ANALYST,
+                      ]}
+                    />
+                  }
+                >
+                  <Route
+                    path="/analytics"
+                    element={<AnalyticsPage />}
+                  />
+                </Route>
 
 
-              {/* ==============================================
+                {/* ==============================================
                   MÓDULO: INSIGHTS — FASE 11
                   Roles: Administrador, Gerente y Analista.
 
@@ -219,60 +224,61 @@ function App() {
                     Administrador, Gerente y Analista.
               ============================================== */}
 
-              <Route
-                element={
-                  <RoleRoute
-                    allowedRoles={[
-                      ROLE_ADMIN,
-                      ROLE_MANAGER,
-                      ROLE_ANALYST,
-                    ]}
-                  />
-                }
-              >
                 <Route
-                  path="/insights"
-                  element={<InsightsPage />}
-                />
-              </Route>
+                  element={
+                    <RoleRoute
+                      allowedRoles={[
+                        ROLE_ADMIN,
+                        ROLE_MANAGER,
+                        ROLE_ANALYST,
+                      ]}
+                    />
+                  }
+                >
+                  <Route
+                    path="/insights"
+                    element={<InsightsPage />}
+                  />
+                </Route>
 
 
-              {/* ==============================================
+                {/* ==============================================
                   MÓDULO: REPORTES — FASE 12
                   Roles: Administrador y Gerente.
               ============================================== */}
 
-              <Route
-                element={
-                  <RoleRoute
-                    allowedRoles={[
-                      ROLE_ADMIN,
-                      ROLE_MANAGER,
-                    ]}
-                  />
-                }
-              >
                 <Route
-                  path="/reportes"
-                  element={<ReportsPage />}
-                />
+                  element={
+                    <RoleRoute
+                      allowedRoles={[
+                        ROLE_ADMIN,
+                        ROLE_MANAGER,
+                      ]}
+                    />
+                  }
+                >
+                  <Route
+                    path="/reportes"
+                    element={<ReportsPage />}
+                  />
+                </Route>
+
               </Route>
-
             </Route>
-          </Route>
 
 
-          {/* ==================================================
+            {/* ==================================================
               RUTA DE RESPALDO
               Redirige rutas desconocidas al Dashboard.
           ================================================== */}
 
-          <Route
-            path="*"
-            element={<Navigate to="/" replace />}
-          />
+            <Route
+              path="*"
+              element={<Navigate to="/" replace />}
+            />
 
-        </Routes>
+          </Routes>
+        </ToastProvider>
       </AuthProvider>
     </BrowserRouter>
   );

@@ -73,3 +73,30 @@ export async function setCustomerActive(
     },
   );
 }
+
+
+export type CustomerPage = {
+  items: Customer[];
+  total: number;
+  page: number;
+  page_size: number;
+  pages: number;
+};
+
+export async function getCustomersPaginated(
+  params: {
+    page: number;
+    pageSize?: number;
+    search?: string;
+    statusFilter?: "all" | "active" | "inactive";
+  },
+  signal?: AbortSignal,
+): Promise<CustomerPage> {
+  const query = new URLSearchParams({
+    page: String(params.page),
+    page_size: String(params.pageSize ?? 7),
+    search: params.search ?? "",
+    status_filter: params.statusFilter ?? "all",
+  });
+  return apiRequest<CustomerPage>(`/api/customers/paginated?${query}`, { signal });
+}

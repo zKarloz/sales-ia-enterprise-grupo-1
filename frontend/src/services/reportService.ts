@@ -9,8 +9,6 @@ import type {
     ReportExportFormat,
     ReportDownloadResult,
     ReportResponse,
-    ExplorerDataset,
-    ExplorerResponse,
 } from "../types/report";
 
 
@@ -231,36 +229,4 @@ export async function downloadReport(
     }
 
     return filename;
-}
-
-export function getExplorerDataset(
-    dataset: ExplorerDataset,
-    filters: ReportFilters,
-): Promise<ExplorerResponse> {
-    const reportType =
-        dataset.startsWith("inventory_")
-            ? "inventory"
-            : dataset;
-
-    if (
-        reportType !== "sales" &&
-        reportType !== "inventory" &&
-        reportType !== "customers"
-    ) {
-        throw new Error("Dataset no válido.");
-    }
-
-    if (!filters.date_from || !filters.date_to) {
-        throw new Error("Selecciona ambas fechas.");
-    }
-
-    if (filters.date_from > filters.date_to) {
-        throw new Error("El intervalo de fechas es inválido.");
-    }
-
-    const params = buildReportParams(reportType, filters);
-
-    return apiRequest<ExplorerResponse>(
-        `/api/reports/explorer/${dataset}?${params.toString()}`,
-    );
 }

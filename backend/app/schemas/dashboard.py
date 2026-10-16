@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal
 
@@ -12,6 +12,7 @@ from pydantic import (
 
 # Periodos admitidos por el Dashboard.
 DashboardPeriod = Literal[
+    "day",
     "month",
     "quarter",
     "year",
@@ -87,7 +88,7 @@ class DashboardKpis(BaseModel):
 class DashboardSalesPeriod(BaseModel):
     """Importe y operaciones por intervalo temporal."""
 
-    period_start: date
+    period_start: date | datetime
     label: str
     total: Decimal
     orders: int

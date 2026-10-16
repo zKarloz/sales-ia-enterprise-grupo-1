@@ -45,8 +45,8 @@ export default function KardexTable({
                                 "Tipo",
                                 "Proveedor",
                                 "Cantidad",
-                                "Saldo anterior",
-                                "Saldo final",
+                                "Stock anterior",
+                                "Stock posterior",
                                 "Motivo",
                                 "Usuario",
                             ].map((label) => (
