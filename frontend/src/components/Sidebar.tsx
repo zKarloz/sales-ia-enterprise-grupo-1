@@ -1,18 +1,13 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import {
   BarChart3,
-  Boxes,
   ChartNoAxesCombined,
+  FolderKanban,
   ChevronLeft,
   ChevronRight,
   ClipboardList,
-  FolderTree,
   LayoutDashboard,
   Lightbulb,
-  Package,
-  ShoppingCart,
-  Truck,
-  Users,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -42,12 +37,7 @@ interface SidebarProps {
 
 const menuItems: MenuItem[] = [
   { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
-  { label: "Clientes", path: "/clientes", icon: Users, roles: [ROLE_ADMIN, ROLE_SELLER] },
-  { label: "Productos", path: "/productos", icon: Package, roles: [ROLE_ADMIN, ROLE_WAREHOUSE] },
-  { label: "Categorías", path: "/categorias", icon: FolderTree, roles: [ROLE_ADMIN, ROLE_WAREHOUSE] },
-  { label: "Proveedores", path: "/proveedores", icon: Truck, roles: [ROLE_ADMIN, ROLE_WAREHOUSE] },
-  { label: "Ventas", path: "/ventas", icon: ShoppingCart, roles: [ROLE_ADMIN, ROLE_MANAGER, ROLE_SELLER] },
-  { label: "Inventario", path: "/inventario", icon: Boxes, roles: [ROLE_ADMIN, ROLE_WAREHOUSE] },
+  { label: "Gestión", path: "/gestion", icon: FolderKanban, roles: [ROLE_ADMIN, ROLE_MANAGER, ROLE_SELLER, ROLE_WAREHOUSE] },
   { label: "Estadística", path: "/estadistica", icon: BarChart3, roles: [ROLE_ADMIN, ROLE_ANALYST] },
   { label: "Analytics", path: "/analytics", icon: ChartNoAxesCombined, roles: [ROLE_ADMIN, ROLE_MANAGER, ROLE_ANALYST] },
   { label: "Insights", path: "/insights", icon: Lightbulb, roles: [ROLE_ADMIN, ROLE_MANAGER, ROLE_ANALYST] },
@@ -61,6 +51,9 @@ export default function Sidebar({
   onToggleExpanded,
 }: SidebarProps) {
   const { user } = useAuth();
+  const location = useLocation();
+  const gestionPaths = ["/gestion", "/clientes", "/productos", "/categorias", "/proveedores", "/ventas", "/inventario"];
+  const isGestionRoute = gestionPaths.some((path) => location.pathname === path || location.pathname.startsWith(`${path}/`));
   const visibleItems = menuItems.filter(
     (item) => !item.roles || (user && item.roles.includes(user.role)),
   );
@@ -122,7 +115,7 @@ export default function Sidebar({
               onClick={onClose}
               title={!expanded ? label : undefined}
               aria-label={label}
-              className={({ isActive }) => `group flex min-h-11 items-center rounded-xl transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300 ${expanded ? "gap-3 px-3" : "gap-3 px-3 lg:justify-center lg:px-0"} ${isActive ? "bg-cyan-400/15 text-white ring-1 ring-inset ring-cyan-400/25" : "text-slate-200 hover:bg-white/[0.07] hover:text-white"}`}
+              className={({ isActive }) => `group flex min-h-11 items-center rounded-xl transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300 ${expanded ? "gap-3 px-3" : "gap-3 px-3 lg:justify-center lg:px-0"} ${(path === "/gestion" ? isGestionRoute : isActive) ? "bg-cyan-400/15 text-white ring-1 ring-inset ring-cyan-400/25" : "text-slate-200 hover:bg-white/[0.07] hover:text-white"}`}
             >
               <Icon aria-hidden="true" size={21} strokeWidth={1.9} className="shrink-0 text-cyan-300" />
               <span className={`truncate text-sm font-medium ${expanded ? "lg:inline" : "lg:sr-only"}`}>

@@ -60,3 +60,31 @@ export async function deleteCategory(
         },
     );
 }
+
+/** Devuelve como máximo cinco coincidencias desde PostgreSQL. */
+export function searchCategories(query: string, signal?: AbortSignal): Promise<Category[]> {
+    const params = new URLSearchParams({ q: query, limit: "5" });
+    return apiRequest<Category[]>(`/api/categories/search?${params}`, { signal });
+}
+
+
+export type CategoryPage = {
+    items: Category[];
+    total: number;
+    page: number;
+    page_size: number;
+    pages: number;
+};
+
+/** Búsqueda y paginación en el servidor, sin descargar todas las categorías. */
+export function getCategoriesPaginated(
+    params: { page: number; pageSize?: number; search?: string },
+    signal?: AbortSignal,
+): Promise<CategoryPage> {
+    const query = new URLSearchParams({
+        page: String(params.page),
+        page_size: String(params.pageSize ?? 7),
+        search: params.search ?? "",
+    });
+    return apiRequest<CategoryPage>(`/api/categories/paginated?${query}`, { signal });
+}

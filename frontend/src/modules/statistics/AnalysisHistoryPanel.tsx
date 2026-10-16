@@ -3,12 +3,13 @@ import {
   useState,
 } from "react";
 
+import TablePagination from "../../components/ui/TablePagination";
 import Card from "../../components/Card";
 import ErrorState from "../../components/ErrorState";
 import LoadingState from "../../components/LoadingState";
 
 import {
-  getAnalyses,
+  getAnalysesPaginated,
   getAnalysisDetail,
 } from "../../services/analysisService";
 
@@ -29,35 +30,35 @@ const analysisTypes: {
   value: StatisticalAnalysisType;
   label: string;
 }[] = [
-  {
-    value: "CLASSIFICATION",
-    label: "Clasificación",
-  },
-  {
-    value: "MEAN",
-    label: "Media",
-  },
-  {
-    value: "MEDIAN",
-    label: "Mediana",
-  },
-  {
-    value: "COMPARE",
-    label: "Comparación",
-  },
-  {
-    value: "RANDOM_VARIABLE",
-    label: "Variable aleatoria",
-  },
-  {
-    value: "PROBABILITY",
-    label: "Probabilidad",
-  },
-  {
-    value: "BAYES",
-    label: "Bayes",
-  },
-];
+    {
+      value: "CLASSIFICATION",
+      label: "Clasificación",
+    },
+    {
+      value: "MEAN",
+      label: "Media",
+    },
+    {
+      value: "MEDIAN",
+      label: "Mediana",
+    },
+    {
+      value: "COMPARE",
+      label: "Comparación",
+    },
+    {
+      value: "RANDOM_VARIABLE",
+      label: "Variable aleatoria",
+    },
+    {
+      value: "PROBABILITY",
+      label: "Probabilidad",
+    },
+    {
+      value: "BAYES",
+      label: "Bayes",
+    },
+  ];
 
 
 const analysisTypeLabels: Record<
@@ -78,6 +79,8 @@ const analysisTypeLabels: Record<
 export default function AnalysisHistoryPanel({
   dataset,
 }: AnalysisHistoryPanelProps) {
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [
     analyses,
     setAnalyses,
@@ -125,19 +128,20 @@ export default function AnalysisHistoryPanel({
       setSelectedAnalysis(null);
 
       const data =
-        await getAnalyses({
+        await getAnalysesPaginated({
           analysis_type:
             analysisType ||
             undefined,
 
           dataset_id:
             onlyCurrentDataset &&
-            dataset
+              dataset
               ? dataset.id
               : undefined,
-        });
+        }, page);
 
-      setAnalyses(data);
+      setAnalyses(data.items);
+      setTotal(data.total);
     } catch (err) {
       setError(
         err instanceof Error
@@ -156,6 +160,7 @@ export default function AnalysisHistoryPanel({
     dataset?.id,
     analysisType,
     onlyCurrentDataset,
+    page,
   ]);
 
 
@@ -215,13 +220,12 @@ export default function AnalysisHistoryPanel({
 
             <select
               value={analysisType}
-              onChange={(event) =>
+              onChange={(event) => {
+                setPage(1);
                 setAnalysisType(
-                  event.target.value as
-                    | StatisticalAnalysisType
-                    | "",
-                )
-              }
+                  event.target.value as StatisticalAnalysisType | "",
+                );
+              }}
               className="
                 w-full
                 rounded-xl
@@ -538,6 +542,8 @@ export default function AnalysisHistoryPanel({
             </div>
           )}
 
+        <TablePagination total={total} page={page} noun="análisis" loading={loading} onPageChange={setPage} />
+
         {loadingDetail && (
           <LoadingState
             message="Cargando detalle..."
@@ -635,7 +641,7 @@ function AnalysisDetailView({
           {" · "}
           {
             analysisTypeLabels[
-              analysis.analysis_type
+            analysis.analysis_type
             ]
           }
         </h3>
@@ -661,10 +667,10 @@ function AnalysisDetailView({
           label="Dataset"
           value={
             analysis.dataset_id !==
-            null
+              null
               ? String(
-                  analysis.dataset_id,
-                )
+                analysis.dataset_id,
+              )
               : "Registro legado"
           }
         />
@@ -673,7 +679,7 @@ function AnalysisDetailView({
           label="Creado por"
           value={
             analysis.created_by !==
-            null
+              null
               ? `Usuario #${analysis.created_by}`
               : "No disponible"
           }
@@ -846,7 +852,7 @@ function AnalysisDetailView({
         title="Resultados"
       >
         {analysis.results.length ===
-        0 ? (
+          0 ? (
           <p
             className="
               text-sm
@@ -880,8 +886,8 @@ function AnalysisDetailView({
                     (
                       result.result_data
                         ? JSON.stringify(
-                            result.result_data,
-                          )
+                          result.result_data,
+                        )
                         : "Sin valor"
                     )
                   }

@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.dependencies.roles import require_roles
@@ -18,6 +19,7 @@ from app.services.customer_service import (
     get_customer_by_document,
     get_customer_history,
     list_customers,
+    paginate_customers,
     set_customer_active,
     update_customer,
 )
@@ -45,6 +47,35 @@ def get_customers(
     return list_customers(
         db,
         include_inactive=include_inactive,
+    )
+
+
+class CustomerPageResponse(BaseModel):
+    items: list[CustomerResponse]
+    total: int
+    page: int
+    page_size: int
+    pages: int
+
+
+@router.get("/paginated", response_model=CustomerPageResponse)
+def get_customers_paginated(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=7, ge=1, le=100),
+    search: str = Query(default="", max_length=150),
+    status_filter: str = Query(default="all", pattern="^(all|active|inactive)$"),
+    db: Session = Depends(get_db),
+    current_user: CurrentUserResponse = Depends(require_roles(ROLE_SELLER)),
+):
+    """Retorna únicamente los clientes solicitados, con conteo total."""
+    items, total = paginate_customers(
+        db, page=page, page_size=page_size,
+        search=search, status_filter=status_filter,
+    )
+    pages = max(1, (total + page_size - 1) // page_size)
+    return CustomerPageResponse(
+        items=items, total=total, page=page,
+        page_size=page_size, pages=pages,
     )
 
 

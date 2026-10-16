@@ -1,7 +1,7 @@
 from collections import defaultdict
 from decimal import Decimal, ROUND_HALF_UP
 
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
 from app.models.audit_log import AuditLog
@@ -35,14 +35,15 @@ def _money(value: Decimal) -> Decimal:
     )
 
 
-def list_sales(db: Session) -> list[dict]:
+def list_sales(
+    db: Session, page: int | None = None, page_size: int = 7,
+) -> list[dict]:
     """Lista ventas junto con sus detalles."""
 
-    sales = list(
-        db.scalars(
-            select(Sale).order_by(Sale.id.desc())
-        ).all()
-    )
+    query = select(Sale).order_by(Sale.id.desc())
+    if page is not None:
+        query = query.offset((page - 1) * page_size).limit(page_size)
+    sales = list(db.scalars(query).all())
 
     if not sales:
         return []
@@ -534,3 +535,23 @@ def _build_sale_response(
             else None
         ),
     }
+
+
+def paginate_sales(db: Session, page: int, page_size: int) -> dict:
+    """Paginación en SQL con respuesta enriquecida de la página actual."""
+    total = db.scalar(select(func.count(Sale.id))) or 0
+    return {
+        "items": list_sales(db, page=page, page_size=page_size),
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "pages": max(1, (total + page_size - 1) // page_size),
+    }
+
+
+def sales_summary(db: Session) -> dict:
+    """Indicadores globales independientes de la página visible."""
+    count, amount = db.execute(
+        select(func.count(Sale.id), func.coalesce(func.sum(Sale.total_amount), 0))
+    ).one()
+    return {"operations": count, "total_amount": amount, "average_ticket": amount / count if count else Decimal("0.00")}

@@ -1,6 +1,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -15,14 +16,13 @@ import EmptyState from "../../components/EmptyState";
 import ErrorState from "../../components/ErrorState";
 import LoadingState from "../../components/LoadingState";
 import PageHeader from "../../components/PageHeader";
-import SuccessState from "../../components/SuccessState";
-
-import {
-  useApi,
-} from "../../hooks/useApi";
+import Modal from "../../components/ui/Modal";
+import ConfirmDialog from "../../components/ui/ConfirmDialog";
+import { useToast } from "../../components/ui/ToastProvider";
 
 import {
   createCustomer,
+  getCustomersPaginated,
   getCustomerHistory,
   setCustomerActive,
   updateCustomer,
@@ -34,6 +34,9 @@ import type {
   CustomerDocumentType,
   CustomerHistory,
 } from "../../types/customer";
+
+import type { CustomerPage } from "../../services/customerService";
+import TablePagination from "../../components/ui/TablePagination";
 
 import CustomerForm from "./CustomerForm";
 import CustomerTable from "./CustomerTable";
@@ -81,6 +84,7 @@ function parseDocumentType(
 export default function CustomersPage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { showToast } = useToast();
 
   const [showForm, setShowForm] = useState(false);
   const [editingCustomer, setEditingCustomer] =
@@ -88,15 +92,20 @@ export default function CustomersPage() {
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] =
-    useState("all");
+    useState<"all" | "active" | "inactive">("all");
+  const [page, setPage] = useState(1);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [customerPage, setCustomerPage] = useState<CustomerPage | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const [saving, setSaving] = useState(false);
 
   const [actionError, setActionError] =
     useState<string | null>(null);
 
-  const [successMessage, setSuccessMessage] =
-    useState<string | null>(null);
+  const [pendingStatus, setPendingStatus] = useState<Customer | null>(null);
 
   const [
     customerHistory,
@@ -109,6 +118,8 @@ export default function CustomersPage() {
     historyLoading,
     setHistoryLoading,
   ] = useState(false);
+  const [historyCustomer, setHistoryCustomer] = useState<Customer | null>(null);
+  const historyRequestId = useRef(0);
 
   const queryParams = useMemo(
     () => new URLSearchParams(location.search),
@@ -129,18 +140,37 @@ export default function CustomersPage() {
     queryParams.get("document_number") ?? "";
 
 
-  const {
-    data: customers,
-    loading,
-    error,
-    refetch,
-  } = useApi<Customer[]>(
-    "/api/customers?include_inactive=true",
-  );
+  const customerList = customerPage?.items ?? [];
+  const total = customerPage?.total ?? 0;
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
 
-  const customerList = customers ?? [];
+  useEffect(() => {
+    const controller = new AbortController();
+    let current = true;
+    setLoading(true);
+    setError(null);
+    getCustomersPaginated({ page, pageSize: 7, search: debouncedSearch, statusFilter }, controller.signal)
+      .then(result => {
+        if (!current) return;
+        if (result.page > result.pages) {
+          setPage(result.pages);
+          return;
+        }
+        setCustomerPage(result);
+      })
+      .catch(reason => {
+        if (!current || controller.signal.aborted) return;
+        setError(reason instanceof Error ? reason.message : "No se pudieron cargar los clientes.");
+      })
+      .finally(() => { if (current) setLoading(false); });
+    return () => { current = false; controller.abort(); };
+  }, [page, debouncedSearch, statusFilter, refreshKey]);
 
+  function refetch() { setRefreshKey(value => value + 1); }
 
   useEffect(() => {
     const params = new URLSearchParams(
@@ -150,59 +180,15 @@ export default function CustomersPage() {
     if (params.get("new") === "1") {
       setEditingCustomer(null);
       setActionError(null);
-      setSuccessMessage(null);
       setShowForm(true);
     }
   }, [location.search]);
 
 
-  const filteredCustomers = useMemo(() => {
-    const value =
-      search.trim().toLowerCase();
-
-    return customerList.filter((customer) => {
-      const matchesSearch =
-        !value ||
-        customer.full_name
-          .toLowerCase()
-          .includes(value) ||
-        (customer.document_number ?? "")
-          .toLowerCase()
-          .includes(value) ||
-        (customer.document_type ?? "")
-          .toLowerCase()
-          .includes(value) ||
-        (customer.email ?? "")
-          .toLowerCase()
-          .includes(value) ||
-        (customer.phone ?? "")
-          .toLowerCase()
-          .includes(value) ||
-        (customer.address ?? "")
-          .toLowerCase()
-          .includes(value);
-
-      const matchesStatus =
-        statusFilter === "all" ||
-        (statusFilter === "active" &&
-          customer.is_active) ||
-        (statusFilter === "inactive" &&
-          !customer.is_active);
-
-      return matchesSearch && matchesStatus;
-    });
-  }, [
-    customerList,
-    search,
-    statusFilter,
-  ]);
-
-
   function openCreateForm() {
-    setCustomerHistory(null);
+    closeCustomerHistory();
     setEditingCustomer(null);
     setActionError(null);
-    setSuccessMessage(null);
     setShowForm(true);
   }
 
@@ -210,15 +196,15 @@ export default function CustomersPage() {
   function openEditForm(
     customer: Customer,
   ) {
-    setCustomerHistory(null);
+    closeCustomerHistory();
     setEditingCustomer(customer);
     setActionError(null);
-    setSuccessMessage(null);
     setShowForm(true);
   }
 
 
   function closeForm() {
+    if (saving) return;
     setEditingCustomer(null);
     setActionError(null);
     setShowForm(false);
@@ -235,7 +221,6 @@ export default function CustomersPage() {
     try {
       setSaving(true);
       setActionError(null);
-      setSuccessMessage(null);
 
       if (editingCustomer) {
         await updateCustomer(
@@ -243,16 +228,14 @@ export default function CustomersPage() {
           customer,
         );
 
-        await refetch();
+        refetch();
 
-        setSuccessMessage(
-          "Los datos del cliente fueron actualizados correctamente.",
-        );
+        showToast("Los datos del cliente fueron actualizados correctamente.", { type: "success" });
       } else {
         const createdCustomer =
           await createCustomer(customer);
 
-        await refetch();
+        refetch();
 
         if (returnTo === "/ventas") {
           navigate(
@@ -261,95 +244,79 @@ export default function CustomersPage() {
           return;
         }
 
-        setSuccessMessage(
-          "El cliente fue registrado correctamente.",
-        );
+        showToast("El cliente fue registrado correctamente.", { type: "success" });
       }
 
       setEditingCustomer(null);
       setShowForm(false);
     } catch (error) {
-      setActionError(
-        error instanceof Error
-          ? error.message
-          : "No se pudo guardar el cliente.",
-      );
+      const message = error instanceof Error ? error.message : "No se pudo guardar el cliente.";
+      setActionError(message);
+      showToast(message, { type: "error" });
     } finally {
       setSaving(false);
     }
   }
 
 
-  async function handleToggleCustomer(
-    id: number,
-    isActive: boolean,
-  ) {
-    const action =
-      isActive ? "desactivar" : "activar";
-
-    const confirmed = window.confirm(
-      `¿Deseas ${action} este cliente?`,
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
+  async function confirmToggleCustomer() {
+    if (!pendingStatus) return;
+    const customer = pendingStatus;
     try {
       setActionError(null);
-      setSuccessMessage(null);
-
-      await setCustomerActive(
-        id,
-        !isActive,
-      );
-
-      await refetch();
-
-      setSuccessMessage(
-        isActive
+      await setCustomerActive(customer.id, !customer.is_active);
+      refetch();
+      setPendingStatus(null);
+      showToast(
+        customer.is_active
           ? "El cliente fue desactivado correctamente."
           : "El cliente fue activado correctamente.",
+        { type: "success" },
       );
     } catch (error) {
-      setActionError(
-        error instanceof Error
-          ? error.message
-          : "No se pudo actualizar el estado del cliente.",
-      );
+      const message = error instanceof Error
+        ? error.message
+        : "No se pudo actualizar el estado del cliente.";
+      setActionError(message);
+      showToast(message, { type: "error" });
+      // El diálogo permanece abierto para permitir reintentar o cancelar.
     }
   }
 
-  async function openCustomerHistory(
-    customer: Customer,
-  ) {
+  async function openCustomerHistory(customer: Customer) {
+    const requestId = ++historyRequestId.current;
+    setShowForm(false);
+    setEditingCustomer(null);
+    setCustomerHistory(null);
+    setHistoryCustomer(customer);
+    setHistoryLoading(true);
+    setActionError(null);
+
     try {
-      setShowForm(false);
-      setEditingCustomer(null);
-      setHistoryLoading(true);
-      setActionError(null);
-      setSuccessMessage(null);
-
-      const history =
-        await getCustomerHistory(
-          customer.id,
-        );
-
-      setCustomerHistory(history);
+      const history = await getCustomerHistory(customer.id);
+      if (requestId === historyRequestId.current) {
+        setCustomerHistory(history);
+      }
     } catch (error) {
-      setActionError(
-        error instanceof Error
+      if (requestId === historyRequestId.current) {
+        const message = error instanceof Error
           ? error.message
-          : "No se pudo cargar el historial del cliente.",
-      );
+          : "No se pudo cargar el historial del cliente.";
+        showToast(message, { type: "error" });
+        setHistoryCustomer(null);
+      }
     } finally {
-      setHistoryLoading(false);
+      if (requestId === historyRequestId.current) {
+        setHistoryLoading(false);
+      }
     }
   }
-
 
   function closeCustomerHistory() {
+    historyRequestId.current += 1;
+    setHistoryCustomer(null);
     setCustomerHistory(null);
+    setHistoryLoading(false);
   }
 
   return (
@@ -368,40 +335,59 @@ export default function CustomersPage() {
         <ErrorState message={actionError} />
       )}
 
-      {successMessage && (
-        <SuccessState message={successMessage} />
-      )}
+      <Modal
+        open={showForm}
+        title={editingCustomer ? "Editar cliente" : "Nuevo cliente"}
+        description={editingCustomer
+          ? "Actualiza los datos comerciales y de identificación del cliente."
+          : "Registra un cliente antes de asociarlo a una venta."}
+        size="lg"
+        onClose={closeForm}
+        closeOnBackdrop={false}
+        closeOnEscape={!saving}
+      >
+        {showForm && (
+          <CustomerForm
+            initialCustomer={editingCustomer}
+            initialDocumentType={editingCustomer ? null : requestedDocumentType}
+            initialDocumentNumber={editingCustomer ? "" : requestedDocumentNumber}
+            onSubmit={handleSaveCustomer}
+            onCancel={closeForm}
+            submitting={saving}
+          />
+        )}
+      </Modal>
 
-      {showForm && (
-        <CustomerForm
-          initialCustomer={editingCustomer}
-          initialDocumentType={
-            editingCustomer
-              ? null
-              : requestedDocumentType
-          }
-          initialDocumentNumber={
-            editingCustomer
-              ? ""
-              : requestedDocumentNumber
-          }
-          onSubmit={handleSaveCustomer}
-          onCancel={closeForm}
-          submitting={saving}
-        />
-      )}
+      <ConfirmDialog
+        open={pendingStatus !== null}
+        title={pendingStatus?.is_active ? "Desactivar cliente" : "Activar cliente"}
+        message={pendingStatus
+          ? `¿Confirmas ${pendingStatus.is_active ? "desactivar" : "activar"} a ${pendingStatus.full_name}? ${pendingStatus.is_active ? "El cliente dejará de estar disponible para operaciones que requieran clientes activos." : "Volverá a estar disponible para operaciones autorizadas."}`
+          : ""}
+        onCancel={() => setPendingStatus(null)}
+        onConfirm={confirmToggleCustomer}
+        confirmLabel={pendingStatus?.is_active ? "Desactivar" : "Activar"}
+        danger={pendingStatus?.is_active ?? false}
+      />
 
-      {historyLoading && (
-        <LoadingState message="Cargando historial del cliente..." />
-      )}
-
-      {!historyLoading &&
-        customerHistory && (
+      <Modal
+        open={historyCustomer !== null}
+        title={historyCustomer ? `Historial de ${historyCustomer.full_name}` : "Historial del cliente"}
+        description="Consulta las compras y los indicadores comerciales del cliente."
+        size="xl"
+        onClose={closeCustomerHistory}
+        closeOnBackdrop={false}
+      >
+        {historyLoading && (
+          <LoadingState message="Cargando historial del cliente..." />
+        )}
+        {!historyLoading && customerHistory && (
           <CustomerHistoryPanel
             history={customerHistory}
             onClose={closeCustomerHistory}
           />
         )}
+      </Modal>
 
       <Card
         title="Clientes registrados"
@@ -432,20 +418,22 @@ export default function CustomersPage() {
 
             <input
               type="search"
-              placeholder="Buscar por nombre, documento, correo, teléfono o dirección..."
+              placeholder="Buscar por ID, DNI/RUC o nombre..."
               value={search}
-              onChange={(event) =>
-                setSearch(event.target.value)
-              }
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setPage(1);
+              }}
               className={`${controlClasses} w-full pl-10`}
             />
           </div>
 
           <select
             value={statusFilter}
-            onChange={(event) =>
-              setStatusFilter(event.target.value)
-            }
+            onChange={(event) => {
+              setStatusFilter(event.target.value as "all" | "active" | "inactive");
+              setPage(1);
+            }}
             className={`${controlClasses} w-full lg:w-52`}
           >
             <option value="all">
@@ -468,35 +456,28 @@ export default function CustomersPage() {
           <ErrorState message={error} />
         )}
 
-        {!loading &&
-          !error &&
-          customerList.length === 0 && (
-            <EmptyState
-              title="No hay clientes"
-              message="Todavía no existen clientes registrados."
-            />
-          )}
+        {!loading && !error && customerList.length === 0 && (
+          <EmptyState
+            title="No se encontraron clientes"
+            message="No hay clientes que coincidan con la búsqueda y el estado seleccionados."
+          />
+        )}
 
         {!loading &&
           !error &&
-          customerList.length > 0 &&
-          filteredCustomers.length === 0 && (
-            <EmptyState
-              title="No se encontraron clientes"
-              message="Prueba con otro documento, criterio de búsqueda o estado."
-            />
-          )}
-
-        {!loading &&
-          !error &&
-          filteredCustomers.length > 0 && (
+          customerList.length > 0 && (
             <CustomerTable
-              customers={filteredCustomers}
+              customers={customerList}
               onEdit={openEditForm}
               onHistory={openCustomerHistory}
-              onToggleActive={handleToggleCustomer}
+              onToggleActive={(id) => {
+                const customer = customerList.find(item => item.id === id);
+                if (customer) setPendingStatus(customer);
+              }}
             />
           )}
+        {!error && <TablePagination total={total} page={page} noun="clientes" loading={loading} onPageChange={setPage} />}
+
       </Card>
     </section>
   );

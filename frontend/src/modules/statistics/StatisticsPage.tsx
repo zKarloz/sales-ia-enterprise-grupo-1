@@ -93,6 +93,7 @@ const sourceTypeLabels: Record<
 
 
 export default function StatisticsPage() {
+  const [tab, setTab] = useState<"descriptive" | "probability" | "datasets" | "history">("descriptive");
   const [
     datasets,
     setDatasets,
@@ -400,11 +401,33 @@ export default function StatisticsPage() {
         title="Estadística"
         description="Analiza datasets operacionales mediante estadística descriptiva, variables aleatorias, probabilidad y Bayes."
       />
-      <DatasetGeneratorPanel
-        onDatasetGenerated={
-          handleDatasetGenerated
-        }
-      />
+      <section aria-label="Secciones de Estadística" className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <h2 className="mb-3 text-base font-bold text-slate-900 dark:text-white">Análisis estadísticos</h2>
+        <div role="tablist" aria-label="Pestañas de Estadística" className="flex flex-wrap gap-2">
+          {([
+            ["descriptive", "Estadística descriptiva"],
+            ["probability", "Probabilidad y Bayes"],
+            ["datasets", "Datasets"],
+            ["history", "Historial"],
+          ] as const).map(([id, label]) => (
+            <button
+              key={id}
+              id={`statistics-tab-${id}`}
+              type="button"
+              role="tab"
+              aria-selected={tab === id}
+              onClick={() => setTab(id)}
+              className={`rounded-xl border px-4 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-500 ${tab === id
+                  ? "border-cyan-600 bg-cyan-600 text-white dark:border-cyan-500 dark:bg-cyan-500 dark:text-slate-950"
+                  : "border-slate-200 bg-slate-50 text-slate-700 hover:border-cyan-400 hover:text-cyan-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:text-cyan-300"
+                }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </section>
+      {tab === "datasets" && <DatasetGeneratorPanel onDatasetGenerated={handleDatasetGenerated} />}
       {loadingDatasets && (
         <LoadingState
           message="Cargando datasets..."
@@ -418,7 +441,7 @@ export default function StatisticsPage() {
           />
         )}
 
-      {!loadingDatasets && (
+      {!loadingDatasets && (tab === "descriptive" || tab === "probability") && (
         <>
           <div
             className="
@@ -626,8 +649,8 @@ export default function StatisticsPage() {
             </Card>
           </div>
 
-          <Card
-            title="3. Análisis estadístico"
+          {tab === "descriptive" && <Card
+            title="Análisis estadístico"
             subtitle="Ejecuta operaciones sobre la variable seleccionada."
           >
             {!selectedVariable ? (
@@ -740,7 +763,7 @@ export default function StatisticsPage() {
                 )}
               </div>
             )}
-          </Card>
+          </Card>}
 
           {error && (
             <ErrorState
@@ -748,23 +771,19 @@ export default function StatisticsPage() {
             />
           )}
 
-          {result && (
+          {tab === "descriptive" && result && (
             <AnalysisResultCard
               result={result}
             />
           )}
 
-          <RandomVariablePanel
-            variable={selectedVariable}
-          />
-          <BayesPanel
-            dataset={selectedDataset}
-          />
-          <AnalysisHistoryPanel
-            dataset={selectedDataset}
-          />
+          {tab === "probability" && <>
+            <RandomVariablePanel variable={selectedVariable} />
+            <BayesPanel dataset={selectedDataset} />
+          </>}
         </>
       )}
+      {tab === "history" && <AnalysisHistoryPanel dataset={selectedDataset} />}
     </section>
   );
 }

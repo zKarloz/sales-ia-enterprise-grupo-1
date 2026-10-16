@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import select, func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -118,3 +118,40 @@ def set_supplier_active(
     db.refresh(supplier)
 
     return supplier
+
+
+def paginate_suppliers(
+    db: Session, page: int = 1, page_size: int = 7,
+    search: str = "", status_filter: str = "all",
+) -> dict:
+    """Pagina proveedores desde PostgreSQL, sin traer todo el catálogo."""
+    conditions = []
+    if status_filter == "active":
+        conditions.append(Supplier.is_active.is_(True))
+    elif status_filter == "inactive":
+        conditions.append(Supplier.is_active.is_(False))
+
+    term = search.strip()
+    if term:
+        pattern = f"%{term}%"
+        parts = [
+            Supplier.business_name.ilike(pattern),
+            Supplier.ruc.ilike(pattern),
+            Supplier.contact_name.ilike(pattern),
+            Supplier.email.ilike(pattern),
+            Supplier.phone.ilike(pattern),
+            Supplier.address.ilike(pattern),
+        ]
+        if term.isdecimal():
+            parts.append(Supplier.id == int(term))
+        conditions.append(or_(*parts))
+
+    stmt = select(Supplier).where(*conditions)
+    total = db.scalar(select(func.count()).select_from(Supplier).where(*conditions)) or 0
+    pages = max(1, (total + page_size - 1) // page_size)
+    page = min(page, pages)
+    items = list(db.scalars(
+        stmt.order_by(Supplier.business_name, Supplier.id)
+        .offset((page - 1) * page_size).limit(page_size)
+    ).all())
+    return {"items": items, "total": total, "page": page, "page_size": page_size, "pages": pages}

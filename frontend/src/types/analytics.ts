@@ -6,6 +6,8 @@ export interface SalesPeriod {
 
 // Resumen calculado por el backend.
 export interface DashboardSummary {
+    period?: "day" | "month" | "quarter" | "year";
+    products_summary?: { total: number; low_stock: number; out_of_stock: number };
     total_sales: number;
     total_customers: number;
     total_orders: number;
@@ -24,6 +26,7 @@ export interface DashboardSummary {
  */
 
 export type DashboardPeriod =
+    | "day"
     | "month"
     | "quarter"
     | "year"

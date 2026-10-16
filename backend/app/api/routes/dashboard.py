@@ -1,5 +1,8 @@
 
-from typing import Annotated
+from typing import Annotated, Literal
+
+from sqlalchemy import func, select
+from app.models.product import Product
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
@@ -32,6 +35,10 @@ router = APIRouter(
 
 @router.get("/home")
 def dashboard_home(
+    period: Literal["day", "month", "quarter", "year"] = "month",
+    branch_id: int | None = Query(default=None, gt=0),
+    seller_id: int | None = Query(default=None, gt=0),
+    category_id: int | None = Query(default=None, gt=0),
     db: Session = Depends(get_db),
     current_user: CurrentUserResponse = Depends(
         get_current_user,
@@ -41,10 +48,29 @@ def dashboard_home(
 
     summary = build_dashboard_summary(
         db=db,
-        filters=DashboardFilters(period="month"),
+        filters=DashboardFilters(
+            period=period,
+            branch_id=branch_id,
+            seller_id=seller_id,
+            category_id=category_id,
+        ),
     )
 
+    product_counts = db.execute(
+        select(
+            func.count(Product.id),
+            func.count(Product.id).filter(Product.stock > 0, Product.stock <= 10),
+            func.count(Product.id).filter(Product.stock == 0),
+        )
+    ).one()
+
     return {
+        "period": period,
+        "products_summary": {
+            "total": product_counts[0],
+            "low_stock": product_counts[1],
+            "out_of_stock": product_counts[2],
+        },
         "total_sales": float(summary.kpis.total_sales),
         "total_customers": summary.kpis.total_customers,
         "total_orders": summary.kpis.total_orders,

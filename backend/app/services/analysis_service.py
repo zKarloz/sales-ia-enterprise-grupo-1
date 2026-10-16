@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
 from app.models.bayes_analysis import BayesAnalysis
@@ -38,6 +38,21 @@ def list_analyses(
             )
         ).all()
     )
+
+
+def paginate_analyses(db: Session, *, page: int = 1, page_size: int = 7,
+                     analysis_type: str | None = None, dataset_id: int | None = None):
+    """Consulta paginada y conteo SQL sin cargar todo el historial."""
+    conditions = []
+    if analysis_type:
+        conditions.append(StatisticalAnalysis.analysis_type == analysis_type.strip().upper())
+    if dataset_id is not None:
+        conditions.append(StatisticalAnalysis.dataset_id == dataset_id)
+    total = db.scalar(select(func.count(StatisticalAnalysis.id)).where(*conditions)) or 0
+    items = list(db.scalars(select(StatisticalAnalysis).where(*conditions)
+                    .order_by(StatisticalAnalysis.id.desc())
+                    .offset((page - 1) * page_size).limit(page_size)).all())
+    return items, int(total)
 
 
 def get_analysis(

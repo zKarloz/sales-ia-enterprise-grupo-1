@@ -1,246 +1,139 @@
-import { useMemo, useState } from "react";
-
+import { useEffect, useState } from "react";
+import { Search, Plus } from "lucide-react";
 import Button from "../../components/Button";
 import Card from "../../components/Card";
 import EmptyState from "../../components/EmptyState";
 import ErrorState from "../../components/ErrorState";
 import LoadingState from "../../components/LoadingState";
 import PageHeader from "../../components/PageHeader";
-import SuccessState from "../../components/SuccessState";
-
-import { useApi } from "../../hooks/useApi";
-
-import {
-    createSupplier,
-    setSupplierActive,
-    updateSupplier,
-} from "../../services/supplierService";
-
-import type {
-    Supplier,
-    SupplierCreate,
-} from "../../types/supplier";
-
+import Modal from "../../components/ui/Modal";
+import ConfirmDialog from "../../components/ui/ConfirmDialog";
+import TablePagination from "../../components/ui/TablePagination";
+import { useToast } from "../../components/ui/ToastProvider";
+import { createSupplier, getSuppliersPaginated, setSupplierActive, updateSupplier } from "../../services/supplierService";
+import type { SupplierPage } from "../../services/supplierService";
+import type { Supplier, SupplierCreate } from "../../types/supplier";
 import SupplierForm from "./SupplierForm";
 import SupplierTable from "./SupplierTable";
 
-const controlClasses = `
-  h-11 rounded-xl border border-slate-300 bg-white px-3.5 text-sm
-  text-slate-900 outline-none transition placeholder:text-slate-400
-  focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10
-  dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100
-  dark:placeholder:text-slate-600
-`;
+const controlClasses = "h-11 rounded-xl border border-slate-300 bg-white px-3.5 text-sm text-slate-900 outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100";
+type StatusFilter = "all" | "active" | "inactive";
 
 export default function SuppliersPage() {
-    const [showForm, setShowForm] = useState(false);
-    const [editingSupplier, setEditingSupplier] =
-        useState<Supplier | null>(null);
+    const { showToast } = useToast();
     const [search, setSearch] = useState("");
-    const [statusFilter, setStatusFilter] = useState("all");
+    const [debouncedSearch, setDebouncedSearch] = useState("");
+    const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+    const [page, setPage] = useState(1);
+    const [data, setData] = useState<SupplierPage | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [refreshKey, setRefreshKey] = useState(0);
+    const [showForm, setShowForm] = useState(false);
+    const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
+    const [pendingSupplier, setPendingSupplier] = useState<Supplier | null>(null);
     const [saving, setSaving] = useState(false);
-    const [actionError, setActionError] =
-        useState<string | null>(null);
-    const [successMessage, setSuccessMessage] =
-        useState<string | null>(null);
+    const [actionError, setActionError] = useState<string | null>(null);
+    const [changingStatus, setChangingStatus] = useState(false);
 
-    const {
-        data: suppliers,
-        loading,
-        error,
-        refetch,
-    } = useApi<Supplier[]>(
-        "/api/suppliers?include_inactive=true",
-    );
+    useEffect(() => {
+        const timer = window.setTimeout(() => setDebouncedSearch(search.trim()), 300);
+        return () => window.clearTimeout(timer);
+    }, [search]);
 
-    const supplierList = suppliers ?? [];
+    useEffect(() => {
+        const controller = new AbortController();
+        setLoading(true);
+        setError(null);
+        void getSuppliersPaginated({ page, pageSize: 7, search: debouncedSearch, statusFilter }, controller.signal)
+            .then(result => {
+                if (controller.signal.aborted) return;
+                if (result.page !== page) { setPage(result.page); return; }
+                setData(result);
+            })
+            .catch(reason => {
+                if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : "No se pudieron cargar los proveedores.");
+            })
+            .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+        return () => controller.abort();
+    }, [page, debouncedSearch, statusFilter, refreshKey]);
 
-    const filteredSuppliers = useMemo(() => {
-        const value = search.trim().toLowerCase();
+    const suppliers = data?.items ?? [];
+    const total = data?.total ?? 0;
+    const refresh = () => setRefreshKey(value => value + 1);
+    const openCreate = () => { setEditingSupplier(null); setActionError(null); setShowForm(true); };
+    const openEdit = (supplier: Supplier) => { setEditingSupplier(supplier); setActionError(null); setShowForm(true); };
+    const closeForm = () => { if (saving) return; setShowForm(false); setEditingSupplier(null); setActionError(null); };
 
-        return supplierList.filter((supplier) => {
-            const matchesSearch =
-                !value ||
-                supplier.business_name.toLowerCase().includes(value) ||
-                supplier.ruc.toLowerCase().includes(value) ||
-                (supplier.contact_name ?? "").toLowerCase().includes(value) ||
-                (supplier.email ?? "").toLowerCase().includes(value) ||
-                (supplier.phone ?? "").toLowerCase().includes(value) ||
-                (supplier.address ?? "").toLowerCase().includes(value);
-
-            const matchesStatus =
-                statusFilter === "all" ||
-                (statusFilter === "active" && supplier.is_active) ||
-                (statusFilter === "inactive" && !supplier.is_active);
-
-            return matchesSearch && matchesStatus;
-        });
-    }, [supplierList, search, statusFilter]);
-
-    function openCreateForm() {
-        setEditingSupplier(null);
-        setActionError(null);
-        setSuccessMessage(null);
-        setShowForm(true);
-    }
-
-    function openEditForm(supplier: Supplier) {
-        setEditingSupplier(supplier);
-        setActionError(null);
-        setSuccessMessage(null);
-        setShowForm(true);
-    }
-
-    function closeForm() {
-        setEditingSupplier(null);
-        setActionError(null);
-        setShowForm(false);
-    }
-
-    async function handleSaveSupplier(
-        supplier: SupplierCreate,
-    ) {
+    async function saveSupplier(payload: SupplierCreate) {
         try {
             setSaving(true);
             setActionError(null);
-            setSuccessMessage(null);
-
             if (editingSupplier) {
-                await updateSupplier(
-                    editingSupplier.id,
-                    supplier,
-                );
-                setSuccessMessage(
-                    "Los datos del proveedor fueron actualizados correctamente.",
-                );
+                await updateSupplier(editingSupplier.id, payload);
+                showToast("Proveedor actualizado correctamente.", { type: "success" });
             } else {
-                await createSupplier(supplier);
-                setSuccessMessage(
-                    "El proveedor fue registrado correctamente.",
-                );
+                await createSupplier(payload);
+                showToast("Proveedor registrado correctamente.", { type: "success" });
             }
-
-            await refetch();
-            setEditingSupplier(null);
             setShowForm(false);
-        } catch (error) {
-            setActionError(
-                error instanceof Error
-                    ? error.message
-                    : "No se pudo guardar el proveedor.",
-            );
-        } finally {
-            setSaving(false);
-        }
+            setEditingSupplier(null);
+            refresh();
+        } catch (reason) {
+            const message = reason instanceof Error ? reason.message : "No se pudo guardar el proveedor.";
+            setActionError(message);
+            showToast(message, { type: "error" });
+        } finally { setSaving(false); }
     }
 
-    async function handleToggleSupplier(
-        id: number,
-        isActive: boolean,
-    ) {
-        const action = isActive ? "desactivar" : "activar";
-
-        if (!window.confirm(`¿Deseas ${action} este proveedor?`)) {
-            return;
-        }
-
+    async function confirmStatus() {
+        if (!pendingSupplier || changingStatus) return;
+        const supplier = pendingSupplier;
         try {
-            setActionError(null);
-            setSuccessMessage(null);
-
-            await setSupplierActive(id, !isActive);
-            await refetch();
-
-            setSuccessMessage(
-                isActive
-                    ? "El proveedor fue desactivado correctamente."
-                    : "El proveedor fue activado correctamente.",
-            );
-        } catch (error) {
-            setActionError(
-                error instanceof Error
-                    ? error.message
-                    : "No se pudo actualizar el estado del proveedor.",
-            );
-        }
+            setChangingStatus(true);
+            await setSupplierActive(supplier.id, !supplier.is_active);
+            setPendingSupplier(null);
+            showToast(supplier.is_active ? "Proveedor desactivado correctamente." : "Proveedor activado correctamente.", { type: "success" });
+            refresh();
+        } catch (reason) {
+            showToast(reason instanceof Error ? reason.message : "No se pudo actualizar el estado del proveedor.", { type: "error" });
+        } finally { setChangingStatus(false); }
     }
 
-    return (
-        <section className="w-full space-y-6">
-            <PageHeader
-                title="Proveedores"
-                description="Gestiona los proveedores utilizados en los ingresos de mercadería."
-                action={
-                    <Button onClick={openCreateForm}>
-                        + Nuevo proveedor
-                    </Button>
-                }
-            />
-
-            {actionError && <ErrorState message={actionError} />}
-            {successMessage && <SuccessState message={successMessage} />}
-
-            {showForm && (
-                <SupplierForm
-                    initialSupplier={editingSupplier}
-                    onSubmit={handleSaveSupplier}
-                    onCancel={closeForm}
-                    submitting={saving}
-                />
-            )}
-
-            <Card
-                title="Proveedores registrados"
-                subtitle="Busca, edita y administra el estado de los proveedores."
-            >
-                <div className="mb-6 flex flex-col gap-3 lg:flex-row">
-                    <input
-                        type="search"
-                        placeholder="Buscar por razón social, RUC, contacto, correo o teléfono..."
-                        value={search}
-                        onChange={(event) => setSearch(event.target.value)}
-                        className={`${controlClasses} w-full flex-1`}
-                    />
-
-                    <select
-                        value={statusFilter}
-                        onChange={(event) => setStatusFilter(event.target.value)}
-                        className={`${controlClasses} w-full lg:w-52`}
-                    >
-                        <option value="all">Todos los estados</option>
-                        <option value="active">Activos</option>
-                        <option value="inactive">Inactivos</option>
-                    </select>
+    return <section className="w-full space-y-6">
+        <PageHeader title="Proveedores" description="Gestiona los proveedores utilizados en los ingresos de mercadería."
+            action={<Button onClick={openCreate}><Plus size={17} className="mr-1 inline" /> Nuevo proveedor</Button>} />
+        <Modal open={showForm} title={editingSupplier ? "Editar proveedor" : "Nuevo proveedor"}
+            description="Gestiona los datos comerciales y la identificación del proveedor."
+            size="lg" onClose={closeForm} closeOnBackdrop={false} closeOnEscape={!saving}>
+            {actionError && <div className="mb-4"><ErrorState message={actionError} /></div>}
+            {showForm && <SupplierForm key={editingSupplier?.id ?? "new"} initialSupplier={editingSupplier}
+                onSubmit={saveSupplier} onCancel={closeForm} submitting={saving} />}
+        </Modal>
+        <ConfirmDialog open={pendingSupplier !== null}
+            title={pendingSupplier?.is_active ? "Desactivar proveedor" : "Activar proveedor"}
+            message={pendingSupplier ? `¿Confirmas ${pendingSupplier.is_active ? "desactivar" : "activar"} a «${pendingSupplier.business_name}» (RUC ${pendingSupplier.ruc})?` : ""}
+            onCancel={() => { if (!changingStatus) setPendingSupplier(null); }} onConfirm={confirmStatus}
+            confirmLabel={pendingSupplier?.is_active ? "Desactivar" : "Activar"} danger={pendingSupplier?.is_active ?? false} />
+        <Card title="Proveedores registrados" subtitle="Busca proveedores sin descargar todo el catálogo; siete registros por página.">
+            <div className="mb-5 flex flex-col gap-3 lg:flex-row">
+                <div className="relative flex-1">
+                    <Search aria-hidden="true" className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <input type="search" aria-label="Buscar proveedores" placeholder="Buscar por ID, razón social, RUC, contacto, correo o teléfono..."
+                        value={search} onChange={event => { setSearch(event.target.value); setPage(1); }} className={`${controlClasses} w-full pl-10`} />
                 </div>
-
-                {loading && <LoadingState message="Cargando proveedores..." />}
-                {!loading && error && <ErrorState message={error} />}
-
-                {!loading && !error && supplierList.length === 0 && (
-                    <EmptyState
-                        title="No hay proveedores"
-                        message="Todavía no existen proveedores registrados."
-                    />
-                )}
-
-                {!loading &&
-                    !error &&
-                    supplierList.length > 0 &&
-                    filteredSuppliers.length === 0 && (
-                        <EmptyState
-                            title="No se encontraron proveedores"
-                            message="Prueba con otro criterio de búsqueda o estado."
-                        />
-                    )}
-
-                {!loading && !error && filteredSuppliers.length > 0 && (
-                    <SupplierTable
-                        suppliers={filteredSuppliers}
-                        onEdit={openEditForm}
-                        onToggleActive={handleToggleSupplier}
-                    />
-                )}
-            </Card>
-        </section>
-    );
+                <select aria-label="Filtrar proveedores por estado" value={statusFilter}
+                    onChange={event => { setStatusFilter(event.target.value as StatusFilter); setPage(1); }}
+                    className={`${controlClasses} w-full lg:w-52`}>
+                    <option value="all">Todos los estados</option><option value="active">Activos</option><option value="inactive">Inactivos</option>
+                </select>
+            </div>
+            {loading && <LoadingState message="Cargando proveedores..." />}
+            {!loading && error && <ErrorState message={error} />}
+            {!loading && !error && suppliers.length === 0 && <EmptyState title="No se encontraron proveedores" message="Prueba otro criterio de búsqueda o estado." />}
+            {!loading && !error && suppliers.length > 0 && <SupplierTable suppliers={suppliers} onEdit={openEdit}
+                onToggleActive={id => { const supplier = suppliers.find(s => s.id === id); if (supplier) setPendingSupplier(supplier); }} />}
+            {!error && <TablePagination total={total} page={page} pageSize={7} noun="proveedores" loading={loading} onPageChange={setPage} />}
+        </Card>
+    </section>;
 }

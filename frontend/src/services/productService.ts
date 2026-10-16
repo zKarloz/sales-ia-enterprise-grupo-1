@@ -54,3 +54,31 @@ export async function setProductActive(
     },
   );
 }
+
+export type ProductPage = {
+  items: Product[];
+  total: number;
+  page: number;
+  page_size: number;
+  pages: number;
+};
+
+export async function getProductsPaginated(
+  params: {
+    page: number;
+    pageSize?: number;
+    search?: string;
+    categoryId?: number | null;
+    statusFilter?: "all" | "active" | "inactive";
+  },
+  signal?: AbortSignal,
+): Promise<ProductPage> {
+  const query = new URLSearchParams({
+    page: String(params.page),
+    page_size: String(params.pageSize ?? 7),
+    search: params.search ?? "",
+    status_filter: params.statusFilter ?? "all",
+  });
+  if (params.categoryId != null) query.set("category_id", String(params.categoryId));
+  return apiRequest<ProductPage>(`/api/products/paginated?${query}`, { signal });
+}

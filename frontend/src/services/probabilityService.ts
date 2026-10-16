@@ -32,3 +32,10 @@ export function calculateBayes(
     },
   );
 }
+
+
+export function calculateEmpiricalBayes(data: import("../types/statistics").EmpiricalBayesRequest) {
+  return apiRequest<import("../types/statistics").EmpiricalBayesResponse>(
+    "/api/probability/empirical-bayes", { method: "POST", body: JSON.stringify(data) }
+  );
+}

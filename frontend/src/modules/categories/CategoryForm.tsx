@@ -67,89 +67,25 @@ export default function CategoryForm({
     }
 
     return (
-        <form
-            onSubmit={handleSubmit}
-            aria-busy={submitting}
-            className="
-        overflow-hidden rounded-2xl border border-slate-200
-        bg-white shadow-sm shadow-slate-950/[0.03]
-        dark:border-slate-800 dark:bg-slate-900
-      "
-        >
-            <header className="border-b border-slate-100 px-5 py-5 sm:px-6 dark:border-slate-800">
-                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-cyan-700 dark:text-cyan-400">
-                    {editing ? "Mantenimiento" : "Registro"}
-                </p>
-
-                <h2 className="mt-1 text-lg font-bold text-slate-950 dark:text-white">
-                    {editing ? "Editar categoría" : "Nueva categoría"}
-                </h2>
-
-                <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400">
-                    {editing
-                        ? "Actualiza el nombre o la descripción de la categoría."
-                        : "Registra una categoría para organizar el catálogo de productos."}
-                </p>
-            </header>
-
-            <div className="p-5 sm:p-6">
-                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                    <div>
-                        <label htmlFor="category-name" className={labelClasses}>
-                            Nombre
-                            <span className="ml-1 text-red-500">*</span>
-                        </label>
-
-                        <input
-                            id="category-name"
-                            value={name}
-                            onChange={(event) => setName(event.target.value)}
-                            placeholder="Ej. Laptops"
-                            required
-                            disabled={submitting}
-                            className={inputClasses}
-                        />
-                    </div>
-
-                    <div>
-                        <label htmlFor="category-description" className={labelClasses}>
-                            Descripción
-                        </label>
-
-                        <input
-                            id="category-description"
-                            value={description}
-                            onChange={(event) => setDescription(event.target.value)}
-                            placeholder="Ej. Equipos portátiles empresariales"
-                            disabled={submitting}
-                            className={inputClasses}
-                        />
-                    </div>
+        <form onSubmit={handleSubmit} aria-busy={submitting} className="space-y-5">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                    <label htmlFor="category-name" className={labelClasses}>Nombre <span className="text-red-500">*</span></label>
+                    <input id="category-name" value={name} onChange={e => setName(e.target.value)}
+                        placeholder="Ej. Laptops" required maxLength={100} disabled={submitting} className={inputClasses} />
+                </div>
+                <div>
+                    <label htmlFor="category-description" className={labelClasses}>Descripción</label>
+                    <input id="category-description" value={description} onChange={e => setDescription(e.target.value)}
+                        placeholder="Ej. Equipos portátiles empresariales" disabled={submitting} className={inputClasses} />
                 </div>
             </div>
-
-            <footer className="
-        flex flex-col-reverse gap-3 border-t border-slate-100
-        bg-slate-50/60 px-5 py-4 sm:flex-row sm:justify-end sm:px-6
-        dark:border-slate-800 dark:bg-slate-950/30
-      ">
-                <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={onCancel}
-                    disabled={submitting}
-                >
-                    Cancelar
-                </Button>
-
+            <div className="flex flex-wrap justify-end gap-3 border-t border-slate-200 pt-4 dark:border-slate-700">
+                <Button type="button" variant="secondary" onClick={onCancel} disabled={submitting}>Cancelar</Button>
                 <Button type="submit" disabled={submitting}>
-                    {submitting
-                        ? "Guardando..."
-                        : editing
-                            ? "Guardar cambios"
-                            : "Guardar categoría"}
+                    {submitting ? "Guardando..." : editing ? "Guardar cambios" : "Guardar categoría"}
                 </Button>
-            </footer>
+            </div>
         </form>
     );
 }

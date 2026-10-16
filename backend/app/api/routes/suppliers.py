@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.api.dependencies.roles import require_roles
@@ -7,6 +7,7 @@ from app.core.roles import ROLE_WAREHOUSE
 from app.schemas.auth import CurrentUserResponse
 from app.schemas.supplier import (
     SupplierCreate,
+    SupplierPageResponse,
     SupplierResponse,
     SupplierStatusUpdate,
     SupplierUpdate,
@@ -16,6 +17,7 @@ from app.services.supplier_service import (
     get_supplier,
     get_supplier_by_ruc,
     list_suppliers,
+    paginate_suppliers,
     set_supplier_active,
     update_supplier,
 )
@@ -44,6 +46,21 @@ def get_suppliers(
         db,
         include_inactive=include_inactive,
     )
+
+
+
+
+@router.get("/paginated", response_model=SupplierPageResponse)
+def get_suppliers_paginated(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(7, ge=1, le=100),
+    search: str = Query("", max_length=200),
+    status_filter: str = Query("all", pattern="^(all|active|inactive)$"),
+    db: Session = Depends(get_db),
+    current_user: CurrentUserResponse = Depends(require_roles(ROLE_WAREHOUSE)),
+):
+    """Lista proveedores paginados con los mismos permisos de gestión."""
+    return paginate_suppliers(db, page, page_size, search, status_filter)
 
 
 @router.get(
